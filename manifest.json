@@ -1,0 +1,34 @@
+{
+  "author": "Mozilla IoT",
+  "content_scripts": [
+    {
+      "css": [
+        "css/extension.css"
+      ],
+      "js": [
+        "js/extension.js"
+      ]
+    }
+  ],
+  "description": "Frontier Silicon Internet Radio adapter add-on for Mozilla WebThings Gateway",
+  "gateway_specific_settings": {
+    "webthings": {
+      "exec": "{nodeLoader} {path}",
+      "primary_type": "adapter",
+      "strict_max_version": "*",
+      "strict_min_version": "0.10.0"
+    }
+  },
+  "homepage_url": "https://github.com/galveston01/frontier-silicon-adapter",
+  "id": "frontier-silicon-adapter",
+  "license": "MPL-2.0",
+  "manifest_version": 1,
+  "name": "FrontierSilicon Adapter",
+  "short_name": "FrontierSilicon",
+  "version": "0.6.1",
+  "web_accessible_resources": [
+    "css/*.css",
+    "js/*.js",
+    "views/*.html"
+  ]
+}
