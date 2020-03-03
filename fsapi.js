@@ -51,7 +51,7 @@ class FSAPI {
         this.doRequest("CREATE_SESSION", {pin: _self.pin}, function(data){
             if(data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0]=='FS_OK' && data.fsapiResponse.sessionId && data.fsapiResponse.sessionId[0]){
                 _self.sid = data.fsapiResponse.sessionId[0];
-                console.log("sid: ", _self.sid);
+                //console.log("sid: ", _self.sid);
                 if(cb) cb(true);
             } else {
                 console.error("CONNECT failed!");

@@ -49,7 +49,9 @@
     "exec": "{nodeLoader} {path}"
   },
   "dependencies": {
+    "@achingbrain/ssdp": "^2.1.2",
     "node-fetch": "^2.6.0",
+    "node-ssdp": "^4.0.0",
     "xml2js": "^0.4.23"
   }
 }
