@@ -13,22 +13,23 @@ const {
   Device,
   Property,
 } = require('gateway-addon');
+const SSDPClient = require('node-ssdp').Client;
+const FSAPI = require('./fsapi');
 
 let FrontierSiliconAPIHandler = null;
 try {
   FrontierSiliconAPIHandler = require('./frontier-silicon-api-handler');
 } catch (e) {
   console.log(`API Handler unavailable: ${e}`);
-  // pass
 }
 
-
-const FSAPI = require('./fsapi');
 const pollInterval = 10000;
+const PIN = "1234";
 
 class PowerProperty extends Property {
   constructor(device, name, propertyDescription) {
     super(device, name, propertyDescription);
+    this.device = device;
 
     this.unit = propertyDescription.unit;
     this.description = propertyDescription.description;
@@ -49,15 +50,6 @@ class PowerProperty extends Property {
     });
   }
 
-  /**
-   * Set the value of the property.
-   *
-   * @param {*} value The new value to set
-   * @returns a promise which resolves to the updated value.
-   *
-   * @note it is possible that the updated value doesn't match
-   * the value passed in.
-   */
   setValue(value) {
     var _self = this;
     return new Promise((resolve, reject) => {
@@ -73,10 +65,26 @@ class PowerProperty extends Property {
 }
 
 class RadioDevice extends Device {
-  constructor(adapter, id, deviceDescription) {
+  constructor(adapter, id, ip, name) {
     super(adapter, id);
+    this.ip = ip;
 
-    this.fsapi = new FSAPI("192.168.0.102", "1234");
+    const deviceDescription = {
+      name: name,
+      '@type': ['OnOffSwitch'],
+      description: name+' Internet Radio',
+      properties: {
+        on: {
+          '@type': 'OnOffProperty',
+          label: 'On/Off',
+          name: 'on',
+          type: 'boolean',
+          value: false,
+        },
+      },
+    };
+
+    this.fsapi = new FSAPI(this.ip, PIN);
 
     this.name = deviceDescription.name;
     this.type = deviceDescription.type;
@@ -90,17 +98,9 @@ class RadioDevice extends Device {
     }
 
     if (FrontierSiliconAPIHandler) {
-      //TODO link to webpage
-      /*this.links.push({
-        rel: 'alternate',
-        mediaType: 'text/html',
-        // eslint-disable-next-line max-len
-        href: `/extensions/frontier-silicon-adapter?thingId=${encodeURIComponent(this.id)}`,
-      });*/
       this.links.push({
         rel: 'alternate',
         mediaType: 'text/html',
-        // eslint-disable-next-line max-len
         href: `http://${this.fsapi.ip}/`,
       });
     }
@@ -112,42 +112,31 @@ class FrontierSiliconAdapter extends Adapter {
     super(addonManager, 'FrontierSiliconAdapter', manifest.name);
     addonManager.addAdapter(this);
 
-    //TODO edit
-    //if (!this.devices['frontier-silicon-radio-0.0.0.0']) {
-      const device = new RadioDevice(this, 'frontier-silicon-radio-0.0.0.2', {
-        name: 'Radio',
-        '@type': ['OnOffSwitch'],
-        description: 'FrontierSilicon Internet Radio',
-        properties: {
-          on: {
-            '@type': 'OnOffProperty',
-            label: 'On/Off',
-            name: 'on',
-            type: 'boolean',
-            value: false,
-          },
-        },
-      });
-
-      this.handleDeviceAdded(device);
-    //}
-
     if (FrontierSiliconAPIHandler) {
       this.apiHandler = new FrontierSiliconAPIHandler(addonManager, this);
     }
+
+    this.startDiscovery();
   }
 
-  /**
-   * FrontierSilicon process to add a new device to the adapter.
-   *
-   * The important part is to call: `this.handleDeviceAdded(device)`
-   *
-   * @param {String} deviceId ID of the device to add.
-   * @param {String} deviceDescription Description of the device to add.
-   * @return {Promise} which resolves to the device added.
-   */
+  startDiscovery() {
+    this.ssdpclient = new SSDPClient();
+    var _self = this;
+    this.ssdpclient.on('response', function (headers, statusCode, rinfo) {
+      if (!_self.devices['frontier-silicon-'+rinfo['address']]) {
+        const device = new RadioDevice(_self, 'frontier-silicon-'+rinfo['address'], rinfo['address'], headers['SPEAKER-NAME']);
+        _self.handleDeviceAdded(device);
+      }
+    });
+    this.search();
+  }
+  search(){
+    this.ssdpclient.search('urn:schemas-frontier-silicon-com:undok:fsapi:1');
+    //this.ssdpclient.search('urn:schemas-frontier-silicon-com:fs_reference:fsapi:1');
+    //this.ssdpclient.search('ssdp:all');
+  }
+
   addDevice(deviceId, deviceDescription) {
-    console.log("addDevice!");
     return new Promise((resolve, reject) => {
       if (deviceId in this.devices) {
         reject(`Device: ${deviceId} already exists.`);
@@ -159,14 +148,6 @@ class FrontierSiliconAdapter extends Adapter {
     });
   }
 
-  /**
-   * FrontierSilicon process to remove a device from the adapter.
-   *
-   * The important part is to call: `this.handleDeviceRemoved(device)`
-   *
-   * @param {String} deviceId ID of the device to remove.
-   * @return {Promise} which resolves to the device removed.
-   */
   removeDevice(deviceId) {
     return new Promise((resolve, reject) => {
       const device = this.devices[deviceId];
@@ -179,29 +160,17 @@ class FrontierSiliconAdapter extends Adapter {
     });
   }
 
-  /**
-   * Start the pairing/discovery process.
-   *
-   * @param {Number} timeoutSeconds Number of seconds to run before timeout
-   */
   startPairing(_timeoutSeconds) {
     console.log('FrontierSiliconAdapter:', this.name,
                 'id', this.id, 'pairing started');
+    this.search();
   }
 
-  /**
-   * Cancel the pairing/discovery process.
-   */
   cancelPairing() {
     console.log('FrontierSiliconAdapter:', this.name, 'id', this.id,
                 'pairing cancelled');
   }
 
-  /**
-   * Unpair the provided the device from the adapter.
-   *
-   * @param {Object} device Device to unpair with
-   */
   removeThing(device) {
     console.log('FrontierSiliconAdapter:', this.name, 'id', this.id,
                 'removeThing(', device.id, ') started');
@@ -214,11 +183,6 @@ class FrontierSiliconAdapter extends Adapter {
     });
   }
 
-  /**
-   * Cancel unpairing process.
-   *
-   * @param {Object} device Device that is currently being paired
-   */
   cancelRemoveThing(device) {
     console.log('FrontierSiliconAdapter:', this.name, 'id', this.id,
                 'cancelRemoveThing(', device.id, ')');
