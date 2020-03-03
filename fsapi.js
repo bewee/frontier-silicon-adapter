@@ -64,14 +64,15 @@ class FSAPI {
         let _self = this;
         this.doRequest("GET/"+prop, {pin: _self.pin, sid: _self.sid}, function(data){
             //console.log("data", data);
-            if(!data && recurse){
-                _self.connect(function(stat){
-                    if(stat){
-                        console.error("Reconnected. Trying GET one more time!");
-                        _self.get(prop,cb,false);
-                    }
-                    else console.error("Reconnect failed!");
-                });
+            if(!data){
+                if(recurse)
+                    _self.connect(function(stat){
+                        if(stat){
+                            console.error("Reconnected. Trying GET one more time!");
+                            _self.get(prop,cb,false);
+                        }
+                        else console.error("Reconnect failed!");
+                    });
                 return;
             }
             if(data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0]=='FS_OK' && data.fsapiResponse.value && data.fsapiResponse.value[0]){
@@ -112,7 +113,18 @@ class FSAPI {
         });
     }
     set_power(val, cb = null){
-        this.set("netRemote.sys.power", val, function(data){
+        this.set("netRemote.sys.power", val, function(){
+            if(cb) cb();
+        });
+    }
+
+    get_volume(cb){
+        this.get("netRemote.sys.audio.volume", function(data){
+            cb(parseInt(data.u8[0]));
+        });
+    }
+    set_volume(val, cb = null){
+        this.set("netRemote.sys.audio.volume", val, function(){
             if(cb) cb();
         });
     }

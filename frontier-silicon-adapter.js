@@ -64,6 +64,44 @@ class PowerProperty extends Property {
   }
 }
 
+class VolumeProperty extends Property {
+  constructor(device, name, propertyDescription) {
+    super(device, name, propertyDescription);
+    this.device = device;
+
+    this.unit = propertyDescription.unit;
+    this.description = propertyDescription.description;
+    this.setCachedValue(propertyDescription.value);
+    this.device.notifyPropertyChanged(this);
+    var _self = this;
+    _self.pollVolume();
+    setInterval(function(){
+      _self.pollVolume();
+    }, pollInterval);
+  }
+
+  pollVolume(){
+    var _self = this;
+    _self.device.fsapi.get_volume(function(data){
+      _self.setCachedValue(data);
+      _self.device.notifyPropertyChanged(_self);
+    });
+  }
+
+  setValue(value) {
+    var _self = this;
+    return new Promise((resolve, reject) => {
+      super.setValue(value).then((updatedValue) => {
+        _self.device.fsapi.set_volume(value);
+        resolve(updatedValue);
+        _self.device.notifyPropertyChanged(_self);
+      }).catch((err) => {
+        reject(err);
+      });
+    });
+  }
+}
+
 class RadioDevice extends Device {
   constructor(adapter, id, ip, name) {
     super(adapter, id);
@@ -81,6 +119,12 @@ class RadioDevice extends Device {
           type: 'boolean',
           value: false,
         },
+        volume: {
+          label: 'Volume',
+          name: 'volume',
+          type: 'integer',
+          value: 13,
+        },
       },
     };
 
@@ -90,12 +134,11 @@ class RadioDevice extends Device {
     this.type = deviceDescription.type;
     this['@type'] = deviceDescription['@type'];
     this.description = deviceDescription.description;
-    for (const propertyName in deviceDescription.properties) {
-      const propertyDescription = deviceDescription.properties[propertyName];
-      const property = new PowerProperty(this, propertyName,
-                                           propertyDescription);
-      this.properties.set(propertyName, property);
-    }
+
+    const powerProperty = new PowerProperty(this, 'on', deviceDescription.properties['on']);
+    this.properties.set('on', powerProperty);
+    const volumeProperty = new VolumeProperty(this, 'volume', deviceDescription.properties['volume']);
+    this.properties.set('volume', volumeProperty);
 
     if (FrontierSiliconAPIHandler) {
       this.links.push({
