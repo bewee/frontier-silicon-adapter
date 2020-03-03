@@ -14,10 +14,11 @@ const parseXML = require('xml2js').Parser().parseString
 
 class FSAPI {
 
-    constructor(ip, pin){
+    constructor(ip, pin, cb, connfailcb = null){
         this.ip = ip;
         this.pin = pin;
-        this.connect();
+        this.connfailcb = connfailcb;
+        this.connect(cb);
     }
 
     doRequest(path, options, cb){
@@ -49,61 +50,56 @@ class FSAPI {
     connect(cb = null){
         let _self = this;
         this.doRequest("CREATE_SESSION", {pin: _self.pin}, function(data){
-            if(data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0]=='FS_OK' && data.fsapiResponse.sessionId && data.fsapiResponse.sessionId[0]){
+            if(data && data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0]=='FS_OK' && data.fsapiResponse.sessionId && data.fsapiResponse.sessionId[0]){
                 _self.sid = data.fsapiResponse.sessionId[0];
-                //console.log("sid: ", _self.sid);
                 if(cb) cb(true);
             } else {
-                console.error("CONNECT failed!");
                 if(cb) cb(false);
+                if(_self.connfailcb) _self.connfailcb();
             }
         });
     }
 
-    get(prop, cb = null, recurse=true){
+    get(prop, cb = null, ecb = null, recurse=true){
         let _self = this;
         this.doRequest("GET/"+prop, {pin: _self.pin, sid: _self.sid}, function(data){
-            //console.log("data", data);
             if(!data){
                 if(recurse)
                     _self.connect(function(stat){
                         if(stat){
                             console.error("Reconnected. Trying GET one more time!");
-                            _self.get(prop,cb,false);
+                            _self.get(prop,cb,ecb,false);
                         }
-                        else console.error("Reconnect failed!");
+                        else 
+                            if(ecb) ecb("Reconnect failed!");
                     });
                 return;
             }
-            if(data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0]=='FS_OK' && data.fsapiResponse.value && data.fsapiResponse.value[0]){
-                //console.log("GET response: ", data.fsapiResponse.value[0]);
+            if(data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0]=='FS_OK' && data.fsapiResponse.value && data.fsapiResponse.value[0])
                 if(cb) cb(data.fsapiResponse.value[0]);
-            } else {
-                console.error("GET failed!");
-                if(cb) cb(false);
-            }
+            else
+                if(ecb) ecb("GET failed!");
         });
     }
 
-    set(prop, val, cb = null, recurse=true){
+    set(prop, val, cb = null, ecb = null, recurse=true){
         let _self = this;
         this.doRequest("SET/"+prop, {pin: _self.pin, sid: _self.sid, value: val}, function(data){
-            //console.log("sdata", data);
             if(!data && recurse){
                 _self.connect(function(stat){
                     if(stat){
                         console.error("Reconnected. Trying SET one more time!");
                         _self.set(prop,cb,false);
                     }
-                    else console.error("Reconnect failed!");
+                    else 
+                        if(ecb) ecb("Reconnect failed!");
                 });
                 return;
             }
-            if(data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0]=='FS_OK'){
+            if(data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0]=='FS_OK')
                 if(cb) cb();
-            } else {
-                console.error("SET failed!");
-            }
+            else
+                if(ecb) ecb("SET failed!");
         });
     }
 
@@ -113,7 +109,7 @@ class FSAPI {
         });
     }
     set_power(val, cb = null){
-        this.set("netRemote.sys.power", val, function(){
+        this.set("netRemote.sys.power", val?1:0, function(){
             if(cb) cb();
         });
     }

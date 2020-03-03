@@ -24,10 +24,11 @@ try {
 }
 
 const pollInterval = 10000;
+const ssdpPollInterval = 10000;
 const PIN = "1234";
 
-class PowerProperty extends Property {
-  constructor(device, name, propertyDescription) {
+class RadioProperty extends Property {
+  constructor(device, name, propertyDescription, get, set) {
     super(device, name, propertyDescription);
     this.device = device;
 
@@ -35,16 +36,14 @@ class PowerProperty extends Property {
     this.description = propertyDescription.description;
     this.setCachedValue(propertyDescription.value);
     this.device.notifyPropertyChanged(this);
-    var _self = this;
-    _self.pollPower();
-    setInterval(function(){
-      _self.pollPower();
-    }, pollInterval);
+    this.get = get;
+    this.set = set;
+    this.update();
   }
 
-  pollPower(){
+  update(){
     var _self = this;
-    _self.device.fsapi.get_power(function(data){
+    _self.get(function(data){
       _self.setCachedValue(data);
       _self.device.notifyPropertyChanged(_self);
     });
@@ -54,45 +53,7 @@ class PowerProperty extends Property {
     var _self = this;
     return new Promise((resolve, reject) => {
       super.setValue(value).then((updatedValue) => {
-        _self.device.fsapi.set_power(value?1:0);
-        resolve(updatedValue);
-        _self.device.notifyPropertyChanged(_self);
-      }).catch((err) => {
-        reject(err);
-      });
-    });
-  }
-}
-
-class VolumeProperty extends Property {
-  constructor(device, name, propertyDescription) {
-    super(device, name, propertyDescription);
-    this.device = device;
-
-    this.unit = propertyDescription.unit;
-    this.description = propertyDescription.description;
-    this.setCachedValue(propertyDescription.value);
-    this.device.notifyPropertyChanged(this);
-    var _self = this;
-    _self.pollVolume();
-    setInterval(function(){
-      _self.pollVolume();
-    }, pollInterval);
-  }
-
-  pollVolume(){
-    var _self = this;
-    _self.device.fsapi.get_volume(function(data){
-      _self.setCachedValue(data);
-      _self.device.notifyPropertyChanged(_self);
-    });
-  }
-
-  setValue(value) {
-    var _self = this;
-    return new Promise((resolve, reject) => {
-      super.setValue(value).then((updatedValue) => {
-        _self.device.fsapi.set_volume(value);
+        _self.set(value);
         resolve(updatedValue);
         _self.device.notifyPropertyChanged(_self);
       }).catch((err) => {
@@ -120,25 +81,36 @@ class RadioDevice extends Device {
           value: false,
         },
         volume: {
+          '@type': 'LevelProperty',
           label: 'Volume',
           name: 'volume',
           type: 'integer',
+          minimum: 0,
+          maximum: 32,
           value: 13,
         },
       },
     };
 
-    this.fsapi = new FSAPI(this.ip, PIN);
+    var _self = this;
+    this.fsapi = new FSAPI(this.ip, PIN, 
+      function(){
+        _self.connectedNotify(true);
+      },
+      function(){
+        _self.connectedNotify(false);
+      }
+    );
 
     this.name = deviceDescription.name;
     this.type = deviceDescription.type;
     this['@type'] = deviceDescription['@type'];
     this.description = deviceDescription.description;
 
-    const powerProperty = new PowerProperty(this, 'on', deviceDescription.properties['on']);
-    this.properties.set('on', powerProperty);
-    const volumeProperty = new VolumeProperty(this, 'volume', deviceDescription.properties['volume']);
-    this.properties.set('volume', volumeProperty);
+    this.powerProperty = new RadioProperty(this, 'on', deviceDescription.properties['on'], this.fsapi.get_power.bind(this.fsapi), this.fsapi.set_power.bind(this.fsapi));
+    this.properties.set('on', this.powerProperty);
+    this.volumeProperty = new RadioProperty(this, 'volume', deviceDescription.properties['volume'], this.fsapi.get_volume.bind(this.fsapi), this.fsapi.set_volume.bind(this.fsapi));
+    this.properties.set('volume', this.volumeProperty);
 
     if (FrontierSiliconAPIHandler) {
       this.links.push({
@@ -147,6 +119,31 @@ class RadioDevice extends Device {
         href: `http://${this.fsapi.ip}/`,
       });
     }
+  }
+
+  revive(){
+    this.startInterval();
+  }
+
+  connectedNotify(stat){
+    super.connectedNotify(stat);
+    if(stat){
+      this.startInterval();
+    } else {
+      if(this.interval){
+        clearInterval(this.interval);
+        delete this.interval;
+      }
+    }
+  }
+
+  startInterval(){
+    var _self = this;
+    if(!this.interval)
+      this.interval = setInterval(function(){
+        _self.powerProperty.update();
+        _self.volumeProperty.update();
+      }, pollInterval);
   }
 }
 
@@ -166,12 +163,19 @@ class FrontierSiliconAdapter extends Adapter {
     this.ssdpclient = new SSDPClient();
     var _self = this;
     this.ssdpclient.on('response', function (headers, statusCode, rinfo) {
-      if (!_self.devices['frontier-silicon-'+rinfo['address']]) {
-        const device = new RadioDevice(_self, 'frontier-silicon-'+rinfo['address'], rinfo['address'], headers['SPEAKER-NAME']);
-        _self.handleDeviceAdded(device);
+      if(statusCode == 200){
+        if (!_self.devices['frontier-silicon-'+rinfo['address']]) {
+          const device = new RadioDevice(_self, 'frontier-silicon-'+rinfo['address'], rinfo['address'], headers['SPEAKER-NAME']);
+          _self.handleDeviceAdded(device);
+        } else {
+          _self.devices['frontier-silicon-'+rinfo['address']].revive();
+        }
       }
     });
-    this.search();
+    _self.search();
+    setInterval(function(){
+      _self.search();
+    }, ssdpPollInterval);
   }
   search(){
     this.ssdpclient.search('urn:schemas-frontier-silicon-com:undok:fsapi:1');
