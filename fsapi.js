@@ -159,6 +159,17 @@ class FSAPI {
             if(cb) cb();
         });
     }
+    
+    get_muted(cb){
+        this.get("netRemote.sys.audio.mute", function(data){
+            cb(parseInt(data.u8[0]));
+        })
+    }
+    set_muted(val, cb = null){
+        this.set("netRemote.sys.audio.mute", val?1:0, function(){
+            if(cb) cb();
+        });
+    }
 
 };
 

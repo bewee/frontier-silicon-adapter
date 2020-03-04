@@ -97,6 +97,12 @@ class RadioDevice extends Device {
           type: 'boolean',
           value: false,
         },
+        muted: {
+          label: 'Muted',
+          name: 'muted',
+          type: 'boolean',
+          value: false,
+        },
       },
     };
 
@@ -121,6 +127,8 @@ class RadioDevice extends Device {
     this.properties.set('volume', volumeProperty);
     let playingProperty = new RadioProperty(this, 'playing', deviceDescription.properties['playing'], this.fsapi.get_playing.bind(this.fsapi), this.fsapi.set_playing.bind(this.fsapi));
     this.properties.set('playing', playingProperty);
+    let mutedProperty = new RadioProperty(this, 'muted', deviceDescription.properties['muted'], this.fsapi.get_muted.bind(this.fsapi), this.fsapi.set_muted.bind(this.fsapi));
+    this.properties.set('muted', mutedProperty);
 
     this.addAction('next', {
       title: '>>',
@@ -177,6 +185,7 @@ class RadioDevice extends Device {
     this.properties.get('on').update();
     this.properties.get('volume').update();
     this.properties.get('playing').update();
+    this.properties.get('muted').update();
   }
 }
 
