@@ -54,6 +54,7 @@ class RadioProperty extends Property {
     return new Promise((resolve, reject) => {
       super.setValue(value).then((updatedValue) => {
         _self.set(value);
+        setTimeout(_self.device.updateProperties.bind(_self.device), 1000);
         resolve(updatedValue);
         _self.device.notifyPropertyChanged(_self);
       }).catch((err) => {
@@ -67,6 +68,7 @@ class RadioDevice extends Device {
   constructor(adapter, id, ip, name) {
     super(adapter, id);
     this.ip = ip;
+    this.actionsfn = [];
 
     const deviceDescription = {
       name: name,
@@ -89,6 +91,12 @@ class RadioDevice extends Device {
           maximum: 32,
           value: 13,
         },
+        playing: {
+          label: 'Play/Pause',
+          name: 'playing',
+          type: 'boolean',
+          value: false,
+        },
       },
     };
 
@@ -107,10 +115,23 @@ class RadioDevice extends Device {
     this['@type'] = deviceDescription['@type'];
     this.description = deviceDescription.description;
 
-    this.powerProperty = new RadioProperty(this, 'on', deviceDescription.properties['on'], this.fsapi.get_power.bind(this.fsapi), this.fsapi.set_power.bind(this.fsapi));
-    this.properties.set('on', this.powerProperty);
-    this.volumeProperty = new RadioProperty(this, 'volume', deviceDescription.properties['volume'], this.fsapi.get_volume.bind(this.fsapi), this.fsapi.set_volume.bind(this.fsapi));
-    this.properties.set('volume', this.volumeProperty);
+    let powerProperty = new RadioProperty(this, 'on', deviceDescription.properties['on'], this.fsapi.get_power.bind(this.fsapi), this.fsapi.set_power.bind(this.fsapi));
+    this.properties.set('on', powerProperty);
+    let volumeProperty = new RadioProperty(this, 'volume', deviceDescription.properties['volume'], this.fsapi.get_volume.bind(this.fsapi), this.fsapi.set_volume.bind(this.fsapi));
+    this.properties.set('volume', volumeProperty);
+    let playingProperty = new RadioProperty(this, 'playing', deviceDescription.properties['playing'], this.fsapi.get_playing.bind(this.fsapi), this.fsapi.set_playing.bind(this.fsapi));
+    this.properties.set('playing', playingProperty);
+
+    this.addAction('next', {
+      title: '>>',
+      description: 'Skip to the next track',
+    });
+    this.actionsfn['next'] = this.fsapi.action_next.bind(this.fsapi);
+    this.addAction('previous', {
+      title: '<<',
+      description: 'Skip to the previous track',
+    });
+    this.actionsfn['previous'] = this.fsapi.action_previous.bind(this.fsapi);
 
     if (FrontierSiliconAPIHandler) {
       this.links.push({
@@ -119,6 +140,16 @@ class RadioDevice extends Device {
         href: `http://${this.fsapi.ip}/`,
       });
     }
+  }
+
+  async performAction(action) {
+    action.start();
+    const fn = this.actionsfn[action.name];
+    if (fn)
+      fn();
+    else
+      console.warn(`Unknown action ${action}`);
+    action.finish();
   }
 
   revive(){
@@ -138,12 +169,14 @@ class RadioDevice extends Device {
   }
 
   startInterval(){
-    var _self = this;
     if(!this.interval)
-      this.interval = setInterval(function(){
-        _self.powerProperty.update();
-        _self.volumeProperty.update();
-      }, pollInterval);
+      this.interval = setInterval(this.updateProperties.bind(this), pollInterval);
+  }
+
+  updateProperties(){
+    this.properties.get('on').update();
+    this.properties.get('volume').update();
+    this.properties.get('playing').update();
   }
 }
 

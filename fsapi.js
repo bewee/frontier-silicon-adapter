@@ -125,6 +125,41 @@ class FSAPI {
         });
     }
 
+    get_playing(cb){
+        this.get("netRemote.play.control", function(data){
+            if(cb) cb((parseInt(data.u8[0])==0 || parseInt(data.u8[0])==2) ? 0 : 1);
+        })
+    }
+    set_playing(val, cb = null){
+        if(val) this.action_play(cb);
+        else    this.action_pause(cb);
+    }
+    action_stop(cb = null){
+        this.set("netRemote.play.control", 0, function(){
+            if(cb) cb();
+        });
+    }
+    action_play(cb = null){
+        this.set("netRemote.play.control", 1, function(){
+            if(cb) cb();
+        });
+    }
+    action_pause(cb = null){
+        this.set("netRemote.play.control", 2, function(){
+            if(cb) cb();
+        });
+    }
+    action_next(cb = null){
+        this.set("netRemote.play.control", 3, function(){
+            if(cb) cb();
+        });
+    }
+    action_previous(cb = null){
+        this.set("netRemote.play.control", 4, function(){
+            if(cb) cb();
+        });
+    }
+
 };
 
 module.exports = FSAPI;
