@@ -103,6 +103,44 @@ class FSAPI {
         });
     }
 
+    getitem(prop, index, cb, ecb, recurse=true){
+        let _self = this;
+        this.doRequest("LIST_GET_NEXT/"+prop+"/"+(index-1), {pin: _self.pin, sid: _self.sid}, function(data){
+            if(!data){
+                if(recurse)
+                    _self.connect(function(stat){
+                        if(stat){
+                            console.error("Reconnected. Trying LIST_GET_NEXT one more time!");
+                            _self.getitem(prop,index,cb,ecb,false);
+                        }
+                        else 
+                            if(ecb) ecb("Reconnect failed!");
+                    });
+                return;
+            }
+            if(data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0]=='FS_OK' && data.fsapiResponse.item && data.fsapiResponse.item[0]){
+                if(cb) cb(data.fsapiResponse.item[0]);
+            }else if(data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0]=='FS_LIST_END'){
+                if(cb) cb(false);
+            }else{
+                if(ecb) ecb("LIST_GET_NEXT failed!");
+            }
+        });
+    }
+
+    getlist(prop, cb, ecb = null, index = 0, list = []){
+        let _self = this;
+        this.getitem(prop, index, function(item){
+            //console.log("item", JSON.stringify(item));
+            if(!item){
+                if(cb) cb(list);
+            } else {
+                list.push(item);
+                _self.getlist(prop, cb, ecb, index+1, list);
+            }
+        }, ecb);
+    }
+
     get_power(cb){
         this.get("netRemote.sys.power", function(data){
             cb(parseInt(data.u8[0]));
@@ -167,6 +205,22 @@ class FSAPI {
     }
     set_muted(val, cb = null){
         this.set("netRemote.sys.audio.mute", val?1:0, function(){
+            if(cb) cb();
+        });
+    }
+
+    getlist_sysmodes(cb){
+        this.getlist("netRemote.sys.caps.validModes", function(list){
+            cb(list.map(x => x.field[2].c8_array[0]));
+        });
+    }
+    get_sysmode(cb){
+        this.get("netRemote.sys.mode", function(data){
+            cb(parseInt(data.u32[0]));
+        })
+    }
+    set_sysmode(val, cb = null){
+        this.set("netRemote.sys.mode", val, function(){
             if(cb) cb();
         });
     }

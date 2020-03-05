@@ -28,7 +28,7 @@ const ssdpPollInterval = 10000;
 const PIN = "1234";
 
 class RadioProperty extends Property {
-  constructor(device, name, propertyDescription, get, set) {
+  constructor(device, name, propertyDescription, get, set, arr = null) {
     super(device, name, propertyDescription);
     this.device = device;
 
@@ -38,13 +38,17 @@ class RadioProperty extends Property {
     this.device.notifyPropertyChanged(this);
     this.get = get;
     this.set = set;
+    this.arr = arr;
     this.update();
   }
 
   update(){
     var _self = this;
     _self.get(function(data){
-      _self.setCachedValue(data);
+      if(_self.arr)
+        _self.setCachedValue(_self.arr[parseInt(data)]);
+      else
+        _self.setCachedValue(data);
       _self.device.notifyPropertyChanged(_self);
     });
   }
@@ -53,7 +57,10 @@ class RadioProperty extends Property {
     var _self = this;
     return new Promise((resolve, reject) => {
       super.setValue(value).then((updatedValue) => {
-        _self.set(value);
+        if(_self.arr)
+          _self.set(_self.arr.indexOf(value));
+        else
+          _self.set(value);
         setTimeout(_self.device.updateProperties.bind(_self.device), 1000);
         resolve(updatedValue);
         _self.device.notifyPropertyChanged(_self);
@@ -65,10 +72,20 @@ class RadioProperty extends Property {
 }
 
 class RadioDevice extends Device {
-  constructor(adapter, id, ip, name) {
+  constructor(adapter, id, ip, name, sysmodelist) {
     super(adapter, id);
     this.ip = ip;
     this.actionsfn = [];
+
+    var _self = this;
+    this.fsapi = new FSAPI(this.ip, PIN, 
+      function(){
+        _self.connectedNotify(true);
+      },
+      function(){
+        _self.connectedNotify(false);
+      }
+    );
 
     const deviceDescription = {
       name: name,
@@ -103,51 +120,51 @@ class RadioDevice extends Device {
           type: 'boolean',
           value: false,
         },
+        sysmode: {
+          label: 'Mode',
+          name: 'sysmode',
+          type: 'string',
+          enum: sysmodelist,
+          value: '0',
+        },
       },
     };
 
-    var _self = this;
-    this.fsapi = new FSAPI(this.ip, PIN, 
-      function(){
-        _self.connectedNotify(true);
-      },
-      function(){
-        _self.connectedNotify(false);
-      }
-    );
+    _self.name = deviceDescription.name;
+    _self.type = deviceDescription.type;
+    _self['@type'] = deviceDescription['@type'];
+    _self.description = deviceDescription.description;
 
-    this.name = deviceDescription.name;
-    this.type = deviceDescription.type;
-    this['@type'] = deviceDescription['@type'];
-    this.description = deviceDescription.description;
+    let powerProperty = new RadioProperty(_self, 'on', deviceDescription.properties['on'], _self.fsapi.get_power.bind(_self.fsapi), _self.fsapi.set_power.bind(_self.fsapi));
+    _self.properties.set('on', powerProperty);
+    let volumeProperty = new RadioProperty(_self, 'volume', deviceDescription.properties['volume'], _self.fsapi.get_volume.bind(_self.fsapi), _self.fsapi.set_volume.bind(_self.fsapi));
+    _self.properties.set('volume', volumeProperty);
+    let playingProperty = new RadioProperty(_self, 'playing', deviceDescription.properties['playing'], _self.fsapi.get_playing.bind(_self.fsapi), _self.fsapi.set_playing.bind(_self.fsapi));
+    _self.properties.set('playing', playingProperty);
+    let mutedProperty = new RadioProperty(_self, 'muted', deviceDescription.properties['muted'], _self.fsapi.get_muted.bind(_self.fsapi), _self.fsapi.set_muted.bind(_self.fsapi));
+    _self.properties.set('muted', mutedProperty);
+    let sysmodeProperty = new RadioProperty(_self, 'sysmode', deviceDescription.properties['sysmode'], _self.fsapi.get_sysmode.bind(_self.fsapi), _self.fsapi.set_sysmode.bind(_self.fsapi), sysmodelist);
+    _self.properties.set('sysmode', sysmodeProperty);
 
-    let powerProperty = new RadioProperty(this, 'on', deviceDescription.properties['on'], this.fsapi.get_power.bind(this.fsapi), this.fsapi.set_power.bind(this.fsapi));
-    this.properties.set('on', powerProperty);
-    let volumeProperty = new RadioProperty(this, 'volume', deviceDescription.properties['volume'], this.fsapi.get_volume.bind(this.fsapi), this.fsapi.set_volume.bind(this.fsapi));
-    this.properties.set('volume', volumeProperty);
-    let playingProperty = new RadioProperty(this, 'playing', deviceDescription.properties['playing'], this.fsapi.get_playing.bind(this.fsapi), this.fsapi.set_playing.bind(this.fsapi));
-    this.properties.set('playing', playingProperty);
-    let mutedProperty = new RadioProperty(this, 'muted', deviceDescription.properties['muted'], this.fsapi.get_muted.bind(this.fsapi), this.fsapi.set_muted.bind(this.fsapi));
-    this.properties.set('muted', mutedProperty);
-
-    this.addAction('next', {
+    _self.addAction('next', {
       title: '>>',
       description: 'Skip to the next track',
     });
-    this.actionsfn['next'] = this.fsapi.action_next.bind(this.fsapi);
-    this.addAction('previous', {
+    _self.actionsfn['next'] = _self.fsapi.action_next.bind(_self.fsapi);
+    _self.addAction('previous', {
       title: '<<',
       description: 'Skip to the previous track',
     });
-    this.actionsfn['previous'] = this.fsapi.action_previous.bind(this.fsapi);
+    _self.actionsfn['previous'] = _self.fsapi.action_previous.bind(_self.fsapi);
 
     if (FrontierSiliconAPIHandler) {
-      this.links.push({
+      _self.links.push({
         rel: 'alternate',
         mediaType: 'text/html',
-        href: `http://${this.fsapi.ip}/`,
+        href: `http://${_self.fsapi.ip}/`,
       });
     }
+      
   }
 
   async performAction(action) {
@@ -186,6 +203,7 @@ class RadioDevice extends Device {
     this.properties.get('volume').update();
     this.properties.get('playing').update();
     this.properties.get('muted').update();
+    this.properties.get('sysmode').update();
   }
 }
 
@@ -207,8 +225,12 @@ class FrontierSiliconAdapter extends Adapter {
     this.ssdpclient.on('response', function (headers, statusCode, rinfo) {
       if(statusCode == 200){
         if (!_self.devices['frontier-silicon-'+rinfo['address']]) {
-          const device = new RadioDevice(_self, 'frontier-silicon-'+rinfo['address'], rinfo['address'], headers['SPEAKER-NAME']);
-          _self.handleDeviceAdded(device);
+          let fsapi = new FSAPI(rinfo['address'], PIN, function(){
+            fsapi.getlist_sysmodes(function(list){
+              const device = new RadioDevice(_self, 'frontier-silicon-'+rinfo['address'], rinfo['address'], headers['SPEAKER-NAME'], list);
+              _self.handleDeviceAdded(device);
+            });
+          });
         } else {
           _self.devices['frontier-silicon-'+rinfo['address']].revive();
         }
@@ -230,7 +252,7 @@ class FrontierSiliconAdapter extends Adapter {
       if (deviceId in this.devices) {
         reject(`Device: ${deviceId} already exists.`);
       } else {
-        const device = new RadioDevice(this, deviceId, deviceDescription);
+        const device = new RadioDevice(this, deviceId, deviceDescription, []);
         this.handleDeviceAdded(device);
         resolve(device);
       }
