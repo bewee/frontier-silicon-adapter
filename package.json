@@ -1,9 +1,9 @@
 {
   "name": "frontier-silicon-adapter",
-  "display_name": "FrontierSilicon Adapter",
-  "version": "0.6.1",
-  "description": "Frontier Silicon Internet Radio adapter add-on for Mozilla WebThings Gateway",
-  "author": "Mozilla IoT",
+  "display_name": "Frontier Silicon Internet Radio",
+  "version": "0.7.0",
+  "description": "Frontier Silicon Internet Radio support",
+  "author": "Galveston01",
   "main": "index.js",
   "scripts": {
     "lint": "eslint ."
@@ -15,7 +15,7 @@
     "frontier-silicon"
   ],
   "homepage": "https://github.com/galveston01/frontier-silicon-adapter",
-  "license": "MPL-2.0",
+  "license": "GPL-3.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/galveston01/frontier-silicon-adapter.git"
@@ -28,16 +28,15 @@
     "eslint": "^6.8.0"
   },
   "files": [
-    "LICENSE",
+    "LICENSE.md",
     "README.md",
     "SHA256SUMS",
     "css",
     "frontier-silicon-adapter.js",
     "frontier-silicon-api-handler.js",
     "index.js",
-    "js",
-    "manifest.json",
-    "views"
+    "fsapi.js",
+    "manifest.json"
   ],
   "moziot": {
     "api": {
@@ -49,7 +48,6 @@
     "exec": "{nodeLoader} {path}"
   },
   "dependencies": {
-    "@achingbrain/ssdp": "^2.1.2",
     "node-fetch": "^2.6.0",
     "node-ssdp": "^4.0.0",
     "xml2js": "^0.4.23"

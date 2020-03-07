@@ -6,7 +6,7 @@ rm -rf node_modules
 # npm install --production
 
 shasum --algorithm 256 manifest.json package.json *.js LICENSE README.md > SHA256SUMS
-find css js views -type f -exec shasum --algorithm 256 {} \; >> SHA256SUMS
+find css -type f -exec shasum --algorithm 256 {} \; >> SHA256SUMS
 
 # If you have npm production dependencies, uncomment the following line
 # find node_modules \( -type f -o -type l \) -exec shasum --algorithm 256 {} \; >> SHA256SUMS
