@@ -10,6 +10,6 @@
 
 const FrontierSiliconAdapter = require('./frontier-silicon-adapter');
 
-module.exports = (addonManager, manifest) => {
-  new FrontierSiliconAdapter(addonManager, manifest);
+module.exports = (addonManager) => {
+  new FrontierSiliconAdapter(addonManager);
 };
