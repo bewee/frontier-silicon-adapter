@@ -41,7 +41,7 @@ module.exports = {
       'error',
       'never'
     ],
-    'curly': 'error',
+    'curly': 'warn',
     'dot-notation': 'error',
     'eol-last': 'error',
     'func-call-spacing': [
@@ -94,7 +94,7 @@ module.exports = {
       'always'
     ],
     'max-len': [
-      'error',
+      'warn',
       80
     ],
     'multiline-ternary': [
@@ -107,9 +107,9 @@ module.exports = {
     'no-floating-decimal': 'error',
     'no-implicit-globals': 'error',
     'no-implied-eval': 'error',
-    'no-lonely-if': 'error',
+    'no-lonely-if': 'warn',
     'no-multi-spaces': [
-      'error',
+      'warn',
       {
         'ignoreEOLComments': true
       }
@@ -209,7 +209,7 @@ module.exports = {
       'error',
       'never'
     ],
-    'space-infix-ops': 'error',
+    'space-infix-ops': 'warn',
     'space-unary-ops': [
       'error',
       {
@@ -218,7 +218,7 @@ module.exports = {
       }
     ],
     'spaced-comment': [
-      'error',
+      'warn',
       'always',
       {
         'block': {
