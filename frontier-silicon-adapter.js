@@ -15,13 +15,7 @@ const {
 } = require('gateway-addon');
 const SSDPClient = require('node-ssdp').Client;
 const FSAPI = require('./fsapi');
-
-let FrontierSiliconAPIHandler = null;
-try {
-  FrontierSiliconAPIHandler = require('./frontier-silicon-api-handler');
-} catch (e) {
-  console.log(`API Handler unavailable: ${e}`);
-}
+const manifest = require('./manifest.json');
 
 const pollInterval = 10000;
 const ssdpPollInterval = 10000;
@@ -157,14 +151,11 @@ class RadioDevice extends Device {
     });
     _self.actionsfn['previous'] = _self.fsapi.action_previous.bind(_self.fsapi);
 
-    if (FrontierSiliconAPIHandler) {
-      _self.links.push({
-        rel: 'alternate',
-        mediaType: 'text/html',
-        href: `http://${_self.fsapi.ip}/`,
-      });
-    }
-      
+    _self.links.push({
+      rel: 'alternate',
+      mediaType: 'text/html',
+      href: `http://${_self.fsapi.ip}/`,
+    });
   }
 
   async performAction(action) {
@@ -208,13 +199,9 @@ class RadioDevice extends Device {
 }
 
 class FrontierSiliconAdapter extends Adapter {
-  constructor(addonManager, manifest) {
-    super(addonManager, 'FrontierSiliconAdapter', manifest.name);
+  constructor(addonManager) {
+    super(addonManager, 'FrontierSiliconAdapter', manifest.id);
     addonManager.addAdapter(this);
-
-    if (FrontierSiliconAPIHandler) {
-      this.apiHandler = new FrontierSiliconAPIHandler(addonManager, this);
-    }
 
     this.startDiscovery();
   }

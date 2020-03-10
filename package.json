@@ -14,26 +14,24 @@
     "adapter",
     "frontier-silicon"
   ],
-  "homepage": "https://github.com/galveston01/frontier-silicon-adapter",
+  "homepage": "https://github.com/Galveston01/frontier-silicon-adapter",
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/galveston01/frontier-silicon-adapter.git"
+    "url": "https://github.com/Galveston01/frontier-silicon-adapter.git"
   },
   "bugs": {
-    "url": "https://github.com/galveston01/frontier-silicon-adapter/issues"
+    "url": "https://github.com/Galveston01/frontier-silicon-adapter/issues"
   },
   "devDependencies": {
-    "babel-eslint": "^10.0.3",
+    "babel-eslint": "^10.1.0",
     "eslint": "^6.8.0"
   },
   "files": [
     "LICENSE.md",
     "README.md",
     "SHA256SUMS",
-    "css",
     "frontier-silicon-adapter.js",
-    "frontier-silicon-api-handler.js",
     "index.js",
     "fsapi.js",
     "manifest.json"
