@@ -6,16 +6,17 @@ const parseXML = require('xml2js').Parser().parseString;
 
 class FSAPI {
 
-  constructor(ip, pin, cb, connfailcb = null) {
+  constructor(ip, pin, cb, disconnectcb = null) {
     this.ip = ip;
     this.pin = pin;
-    this.connfailcb = connfailcb;
+    this.disconnectcb = disconnectcb;
     this.connect(cb);
   }
 
   doRequest(path, options, cb) {
     const params = new URLSearchParams(options).toString();
     const url = `http://${this.ip}/fsapi/${path}/?${params}`;
+    //console.log(url);
     fetch(url).then((res) => {
       if (!res) {
         cb(null);
@@ -42,58 +43,43 @@ class FSAPI {
     this.doRequest('CREATE_SESSION', {pin: _self.pin}, (data) => {
       if (data && data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0] == 'FS_OK' && data.fsapiResponse.sessionId && data.fsapiResponse.sessionId[0]) {
         _self.sid = data.fsapiResponse.sessionId[0];
-        if (cb)
-          cb(true);
+        if (cb) cb(true);
       } else {
-        if (cb)
-          cb(false);
-        if (_self.connfailcb)
-          _self.connfailcb();
+        if (cb) cb(false);
       }
     });
   }
 
-  get(prop, cb = null, ecb = null, recurse = true) {
+  get(prop, cb = null, ecb = null) {
     const _self = this;
     this.doRequest(`GET/${prop}`, {pin: _self.pin, sid: _self.sid}, (data) => {
-      if (!data) {
-        if (recurse)
-          _self.connect((stat) => {
-            if (stat) {
-              console.error('Reconnected. Trying GET one more time!');
-              _self.get(prop, cb, ecb, false);
-            } else {
-              if (ecb) ecb('Reconnect failed!');
-            }
-          });
+      if (!(data && data.fsapiResponse && data.fsapiResponse.status)) {
+        if (_self.disconnectcb) _self.disconnectcb();
         return;
       }
       if (data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0] == 'FS_OK' && data.fsapiResponse.value && data.fsapiResponse.value[0]) {
-        if (cb) cb(data.fsapiResponse.value[0]);
+        const valnode = data.fsapiResponse.value[0];
+        const val = valnode[Object.keys(valnode)[0]][0];
+        if (cb) cb(val);
       } else {
-        if (ecb) ecb('GET failed!');
+        console.error('This should not happen.');
+        if (ecb) ecb();
       }
     });
   }
 
-  set(prop, val, cb = null, ecb = null, recurse = true) {
+  set(prop, val, cb = null, ecb = null) {
     const _self = this;
     this.doRequest(`SET/${prop}`, {pin: _self.pin, sid: _self.sid, value: val}, (data) => {
-      if (!data && recurse) {
-        _self.connect((stat) => {
-          if (stat) {
-            console.error('Reconnected. Trying SET one more time!');
-            _self.set(prop, cb, false);
-          } else {
-            if (ecb) ecb('Reconnect failed!');
-          }
-        });
+      if (!(data && data.fsapiResponse && data.fsapiResponse.status)) {
+        if (_self.disconnectcb) _self.disconnectcb();
         return;
       }
       if (data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0] == 'FS_OK') {
         if (cb) cb();
       } else {
-        if (ecb) ecb('SET failed!');
+        console.error('This should not happen.');
+        if (ecb) ecb();
       }
     });
   }
@@ -101,17 +87,8 @@ class FSAPI {
   getitem(prop, index, cb, ecb, recurse = true) {
     const _self = this;
     this.doRequest(`LIST_GET_NEXT/${prop}/${index-1}`, {pin: _self.pin, sid: _self.sid}, (data) => {
-      if (!data) {
-        if (recurse) {
-          _self.connect((stat) => {
-            if (stat) {
-              console.error('Reconnected. Trying LIST_GET_NEXT one more time!');
-              _self.getitem(prop, index, cb, ecb, false);
-            } else {
-              if (ecb) ecb('Reconnect failed!');
-            }
-          });
-        }
+      if (!(data && data.fsapiResponse && data.fsapiResponse.status)) {
+        if (_self.disconnectcb) _self.disconnectcb();
         return;
       }
       if (data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0] == 'FS_OK' && data.fsapiResponse.item && data.fsapiResponse.item[0]) {
@@ -119,7 +96,8 @@ class FSAPI {
       } else if (data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0] == 'FS_LIST_END') {
         if (cb) cb(false);
       } else {
-        if (ecb) ecb('LIST_GET_NEXT failed!');
+        console.error('This should not happen.');
+        if (ecb) ecb();
       }
     });
   }
@@ -137,101 +115,67 @@ class FSAPI {
     }, ecb);
   }
 
-  get_power(cb) {
-    this.get('netRemote.sys.power', (data) => {
-      cb(parseInt(data.u8[0]));
+  getnotifies(cb) {
+    const _self = this;
+    this.doRequest('GET_NOTIFIES', {pin: _self.pin, sid: _self.sid}, (data) => {
+      //console.log('ndata', data);
+      if (!(data && data.fsapiResponse && data.fsapiResponse.status)) {
+        if (_self.disconnectcb) _self.disconnectcb();
+        return;
+      }
+      if (data.fsapiResponse.status[0] == 'FS_TIMEOUT') {
+        _self.getnotifies(cb);
+      } else if (data.fsapiResponse.status[0] == 'FS_OK') {
+        const list = {};
+        for (const node of data.fsapiResponse.notify) {
+          const valnode = node.value[0];
+          const prop = node.$.node;
+          const val = valnode[Object.keys(valnode)[0]][0];
+          list[prop] = val;
+        }
+        cb(list);
+      } else {
+        console.error('This should not happen.');
+      }
     });
   }
 
-  set_power(val, cb = null) {
-    this.set('netRemote.sys.power', val?1:0, () => {
-      if (cb) cb();
+  getlist_sysmodes(cb) {
+    this.getlist('netremote.sys.caps.validModes', (list) => {
+      cb(list.map((x) => x.field[2].c8_array[0]));
     });
-  }
-
-  get_volume(cb) {
-    this.get('netRemote.sys.audio.volume', (data) => {
-      cb(parseInt(data.u8[0]));
-    });
-  }
-
-  set_volume(val, cb = null) {
-    this.set('netRemote.sys.audio.volume', val, () => {
-      if (cb) cb();
-    });
-  }
-
-  get_playing(cb) {
-    this.get('netRemote.play.control', (data) => {
-      if (cb) cb((parseInt(data.u8[0])==0 || parseInt(data.u8[0])==2) ? 0 : 1);
-    });
-  }
-
-  set_playing(val, cb = null) {
-    if (val) this.action_play(cb);
-    else     this.action_pause(cb);
   }
 
   action_stop(cb = null) {
-    this.set('netRemote.play.control', 0, () => {
+    this.set('netremote.play.control', 0, () => {
       if (cb) cb();
     });
   }
 
   action_play(cb = null) {
-    this.set('netRemote.play.control', 1, () => {
+    this.set('netremote.play.control', 1, () => {
       if (cb) cb();
     });
   }
 
   action_pause(cb = null) {
-    this.set('netRemote.play.control', 2, () => {
+    this.set('netremote.play.control', 2, () => {
       if (cb) cb();
     });
   }
 
   action_next(cb = null) {
-    this.set('netRemote.play.control', 3, () => {
+    this.set('netremote.play.control', 3, () => {
       if (cb) cb();
     });
   }
 
   action_previous(cb = null) {
-    this.set('netRemote.play.control', 4, () => {
+    this.set('netremote.play.control', 4, () => {
       if (cb) cb();
     });
   }
-
-  get_muted(cb) {
-    this.get('netRemote.sys.audio.mute', (data) => {
-      cb(parseInt(data.u8[0]));
-    });
-  }
-
-  set_muted(val, cb = null) {
-    this.set('netRemote.sys.audio.mute', val?1:0, () => {
-      if (cb) cb();
-    });
-  }
-
-  getlist_sysmodes(cb) {
-    this.getlist('netRemote.sys.caps.validModes', (list) => {
-      cb(list.map((x) => x.field[2].c8_array[0]));
-    });
-  }
-
-  get_sysmode(cb) {
-    this.get('netRemote.sys.mode', (data) => {
-      cb(parseInt(data.u32[0]));
-    });
-  }
-
-  set_sysmode(val, cb = null) {
-    this.set('netRemote.sys.mode', val, () => {
-      if (cb) cb();
-    });
-  }
-
+  
 }
 
 module.exports = FSAPI;
