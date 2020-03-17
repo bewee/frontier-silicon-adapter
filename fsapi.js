@@ -62,7 +62,7 @@ class FSAPI {
         const val = valnode[Object.keys(valnode)[0]][0];
         if (cb) cb(val);
       } else {
-        console.error('This should not happen.');
+        console.error('This should not happen.', 'get', prop);
         if (ecb) ecb();
       }
     });
@@ -78,13 +78,13 @@ class FSAPI {
       if (data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0] == 'FS_OK') {
         if (cb) cb();
       } else {
-        console.error('This should not happen.');
+        console.error('This should not happen.', 'set', prop, val);
         if (ecb) ecb();
       }
     });
   }
 
-  getitem(prop, index, cb, ecb, recurse = true) {
+  getitem(prop, index, cb, ecb) {
     const _self = this;
     this.doRequest(`LIST_GET_NEXT/${prop}/${index-1}`, {pin: _self.pin, sid: _self.sid}, (data) => {
       if (!(data && data.fsapiResponse && data.fsapiResponse.status)) {
@@ -175,7 +175,7 @@ class FSAPI {
       if (cb) cb();
     });
   }
-  
+
 }
 
 module.exports = FSAPI;
