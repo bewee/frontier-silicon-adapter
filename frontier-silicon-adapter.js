@@ -27,6 +27,7 @@ class RadioProperty extends Property {
     this.updatecb = updatecb;
   }
 
+  // update value by querying property
   update() {
     const _self = this;
     this.device.fsapi.get(this.name, (data) => {
@@ -34,6 +35,7 @@ class RadioProperty extends Property {
     });
   }
 
+  // update value (given in string format)
   updateValue(value) {
     if (this.updatecb) this.updatecb(value);
     let v = null;
@@ -56,6 +58,8 @@ class RadioProperty extends Property {
     this.setValue(v, false);
   }
 
+  // sets value (given as [datatype])
+  // updates fsapi in string format
   setValue(value, update = true) {
     const _self = this;
     return new Promise((resolve, reject) => {
@@ -79,6 +83,53 @@ class RadioProperty extends Property {
                 break;
             }
           }
+          _self.device.fsapi.set(_self.name, v);
+        }
+        resolve(updatedValue);
+        _self.device.notifyPropertyChanged(_self);
+      }).catch((err) => {
+        reject(err);
+      });
+    });
+  }
+}
+
+class RadioPlayingProperty extends Property {
+  constructor(device, name, propertyDescription) {
+    super(device, name, propertyDescription);
+    this.device = device;
+    this.unit = propertyDescription.unit;
+    this.description = propertyDescription.description;
+    this.setCachedValue(propertyDescription.value);
+    this.device.notifyPropertyChanged(this);
+  }
+
+  // update value by querying netremote.play.control
+  update() {
+    const _self = this;
+    this.device.fsapi.get(this.name, (data) => {
+      _self.updateValue(data==='2' ? '3' : '2');
+    });
+  }
+
+  // update value (given in netremote.play.status format)
+  updateValue(value) {
+    if (value == '2')
+      this.device.properties.get('netremote.sys.power').updateValue('1');
+    let v = true;
+    if (value === '1' || value === '3' || value === '6')
+      v = false;
+    this.setValue(v, false);
+  }
+
+  // sets value (given as boolean)
+  // updates fsapi in netremote.play.control format
+  setValue(value, update = true) {
+    const _self = this;
+    return new Promise((resolve, reject) => {
+      super.setValue(value).then((updatedValue) => {
+        if (update) {
+          const v = value ? '1' : '2';
           _self.device.fsapi.set(_self.name, v);
         }
         resolve(updatedValue);
@@ -185,7 +236,7 @@ class RadioDevice extends Device {
           name: 'sysmode',
           type: 'string',
           enum: sysmodelist,
-          value: '0',
+          value: '',
         },
         'netremote.play.info.*': {
           label: 'Info',
@@ -216,10 +267,11 @@ class RadioDevice extends Device {
     this.properties.set('netremote.sys.audio.mute', mutedProperty);
     const sysmodeProperty = new RadioProperty(this, 'netremote.sys.mode', deviceDescription.properties['netremote.sys.mode'], 'enum', sysmodelist);
     this.properties.set('netremote.sys.mode', sysmodeProperty);
-    const playingProperty = new RadioProperty(this, 'netremote.play.control', deviceDescription.properties['netremote.play.control'], 'enum', {0: false, 1: false, 2: true, 3: false}, {true: 1, false: 2}, null, (val) => {
+    /*const playingProperty = new RadioProperty(this, 'netremote.play.control', deviceDescription.properties['netremote.play.control'], 'enum', {'1': false, '2': true, '3': false}, {true: '1', false: '2'}, null, (val) => {
       if (val == '2')
         this.properties.get('netremote.sys.power').updateValue('1');
-    });
+    });*/
+    const playingProperty = new RadioPlayingProperty(this, 'netremote.play.control', deviceDescription.properties['netremote.play.control']);
     this.properties.set('netremote.play.control', playingProperty);
     const infoProperty = new RadioInfoProperty(this, 'netremote.play.info.*', deviceDescription.properties['netremote.play.info.*']);
     this.properties.set('netremote.play.info.*', infoProperty);
@@ -261,16 +313,18 @@ class RadioDevice extends Device {
   }
 
   connectedNotify(stat) {
-    super.connectedNotify(stat);
     if (!('connected' in this) || stat != this.connected) {
       this.connected = stat;
       if (stat) {
         console.log('Connected!');
         this.updateAllProperties();
         this.detectUpdates();
+        super.connectedNotify(stat);
       } else {
         console.log('Disconnected');
       }
+    } else {
+      super.connectedNotify(stat);
     }
   }
 
