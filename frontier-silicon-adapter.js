@@ -168,6 +168,18 @@ class RadioDevice extends Device {
           type: 'boolean',
           value: false,
         },
+        'netremote.play.repeat': {
+          label: 'Loop',
+          name: 'repeat',
+          type: 'boolean',
+          value: false,
+        },
+        'netremote.play.shuffle': {
+          label: 'Shuffle',
+          name: 'shuffle',
+          type: 'boolean',
+          value: false,
+        },
         'netremote.sys.mode': {
           label: 'Mode',
           name: 'sysmode',
@@ -203,6 +215,10 @@ class RadioDevice extends Device {
     this.properties.set('netremote.play.control', playingProperty);
     const mutedProperty = new RadioProperty(this, 'netremote.sys.audio.mute', deviceDescription.properties['netremote.sys.audio.mute'], 'bool');
     this.properties.set('netremote.sys.audio.mute', mutedProperty);
+    const repeatProperty = new RadioProperty(this, 'netremote.play.repeat', deviceDescription.properties['netremote.play.repeat'], 'bool');
+    this.properties.set('netremote.play.repeat', repeatProperty);
+    const shuffleProperty = new RadioProperty(this, 'netremote.play.shuffle', deviceDescription.properties['netremote.play.shuffle'], 'bool');
+    this.properties.set('netremote.play.shuffle', shuffleProperty);
     const sysmodeProperty = new RadioProperty(this, 'netremote.sys.mode', deviceDescription.properties['netremote.sys.mode'], 'enum', sysmodelist);
     this.properties.set('netremote.sys.mode', sysmodeProperty);
     const infoProperty = new RadioInfoProperty(this, 'netremote.play.info.*', deviceDescription.properties['netremote.play.info.*']);
@@ -268,7 +284,7 @@ class RadioDevice extends Device {
   detectUpdates() {
     const _self = this;
     this.fsapi.getnotifies((list) => {
-      //console.log('list', list);
+      console.log('list', list);
       for (const prop in list) {
         switch (prop) {
           case 'netremote.play.status': {
