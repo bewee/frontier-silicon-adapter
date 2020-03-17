@@ -321,9 +321,11 @@ class FrontierSiliconAdapter extends Adapter {
       if (statusCode == 200) {
         if (!_self.devices[`frontier-silicon-${rinfo.address}`]) {
           const fsapi = new FSAPI(rinfo.address, PIN, () => {
-            fsapi.getlist_sysmodes((list) => {
-              const device = new RadioDevice(_self, `frontier-silicon-${rinfo.address}`, rinfo.address, headers['SPEAKER-NAME'], list);
-              _self.handleDeviceAdded(device);
+            fsapi.get('netRemote.sys.info.radioId', (radioId) => {
+              fsapi.getlist_sysmodes((list) => {
+                const device = new RadioDevice(_self, `frontier-silicon-${radioId}`, rinfo.address, headers['SPEAKER-NAME'], list);
+                _self.handleDeviceAdded(device);
+              });
             });
           });
         } else {
