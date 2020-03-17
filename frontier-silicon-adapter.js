@@ -120,7 +120,7 @@ class RadioInfoProperty extends Property {
 }
 
 class RadioDevice extends Device {
-  constructor(adapter, id, ip, name, sysmodelist) {
+  constructor(adapter, id, ip, name, sysmodelist, maxvolume) {
     super(adapter, id);
     this.ip = ip;
     this.actionsfn = [];
@@ -153,8 +153,8 @@ class RadioDevice extends Device {
           name: 'volume',
           type: 'integer',
           minimum: 0,
-          maximum: 32,
-          value: 13,
+          maximum: maxvolume,
+          value: maxvolume/4,
         },
         'netremote.play.control': {
           label: 'Play/Pause',
@@ -322,9 +322,11 @@ class FrontierSiliconAdapter extends Adapter {
         if (!_self.devices[`frontier-silicon-${rinfo.address}`]) {
           const fsapi = new FSAPI(rinfo.address, PIN, () => {
             fsapi.get('netRemote.sys.info.radioId', (radioId) => {
-              fsapi.getlist_sysmodes((list) => {
-                const device = new RadioDevice(_self, `frontier-silicon-${radioId}`, rinfo.address, headers['SPEAKER-NAME'], list);
-                _self.handleDeviceAdded(device);
+              fsapi.get('netRemote.sys.caps.volumeSteps', (maxvolume) => {
+                fsapi.getlist_sysmodes((list) => {
+                  const device = new RadioDevice(_self, `frontier-silicon-${radioId}`, rinfo.address, headers['SPEAKER-NAME'], list, parseInt(maxvolume));
+                  _self.handleDeviceAdded(device);
+                });
               });
             });
           });
@@ -351,7 +353,7 @@ class FrontierSiliconAdapter extends Adapter {
       if (deviceId in this.devices) {
         reject(`Device: ${deviceId} already exists.`);
       } else {
-        const device = new RadioDevice(this, deviceId, deviceDescription, []);
+        const device = new RadioDevice(this, deviceId, deviceDescription, [], 0);
         this.handleDeviceAdded(device);
         resolve(device);
       }
