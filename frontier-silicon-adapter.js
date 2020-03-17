@@ -2,15 +2,13 @@
 
 const {
   Adapter,
+  Database,
   Device,
   Property,
 } = require('gateway-addon');
 const SSDPClient = require('node-ssdp').Client;
 const FSAPI = require('./fsapi');
 const manifest = require('./manifest.json');
-
-const ssdpPollInterval = 60000;
-const PIN = '1234';
 
 class RadioProperty extends Property {
   constructor(device, name, propertyDescription, datatype = null, decodeobj = null, encodeobj = null, setcb = null, updatecb = null) {
@@ -117,7 +115,7 @@ class RadioPlayingProperty extends Property {
     if (value == '2')
       this.device.properties.get('netremote.sys.power').updateValue('1');
     let v = true;
-    if (value === '1' || value === '3' || value === '6')
+    if (value === '1' || value === '3')
       v = false;
     this.setValue(v, false);
   }
@@ -177,7 +175,7 @@ class RadioDevice extends Device {
     this.actionsfn = [];
 
     const _self = this;
-    this.fsapi = new FSAPI(this.ip, PIN, (stat) => {
+    this.fsapi = new FSAPI(this.ip, _self.adapter.config.pin, (stat) => {
       _self.connectedNotify(stat);
     }, () => {
       console.log('Disconnected! Trying to reconnect!');
@@ -267,10 +265,6 @@ class RadioDevice extends Device {
     this.properties.set('netremote.sys.audio.mute', mutedProperty);
     const sysmodeProperty = new RadioProperty(this, 'netremote.sys.mode', deviceDescription.properties['netremote.sys.mode'], 'enum', sysmodelist);
     this.properties.set('netremote.sys.mode', sysmodeProperty);
-    /*const playingProperty = new RadioProperty(this, 'netremote.play.control', deviceDescription.properties['netremote.play.control'], 'enum', {'1': false, '2': true, '3': false}, {true: '1', false: '2'}, null, (val) => {
-      if (val == '2')
-        this.properties.get('netremote.sys.power').updateValue('1');
-    });*/
     const playingProperty = new RadioPlayingProperty(this, 'netremote.play.control', deviceDescription.properties['netremote.play.control']);
     this.properties.set('netremote.play.control', playingProperty);
     const infoProperty = new RadioInfoProperty(this, 'netremote.play.info.*', deviceDescription.properties['netremote.play.info.*']);
@@ -365,7 +359,16 @@ class FrontierSiliconAdapter extends Adapter {
     super(addonManager, 'FrontierSiliconAdapter', manifest.id);
     addonManager.addAdapter(this);
 
-    this.startDiscovery();
+    this.db = new Database(this.packageName);
+    const _self = this;
+    this.db.open().then(() => {
+      return _self.db.loadConfig();
+    }).then((config) => {
+      _self.config = config;
+      return Promise.resolve();
+    }).then(() => {
+      _self.startDiscovery();
+    }).catch(console.error);
   }
 
   startDiscovery() {
@@ -374,7 +377,7 @@ class FrontierSiliconAdapter extends Adapter {
     this.ssdpclient.on('response', (headers, statusCode, rinfo) => {
       if (statusCode == 200) {
         if (!_self.devices[`frontier-silicon-${rinfo.address}`]) {
-          const fsapi = new FSAPI(rinfo.address, PIN, () => {
+          const fsapi = new FSAPI(rinfo.address, _self.config.pin, () => {
             fsapi.get('netRemote.sys.info.radioId', (radioId) => {
               fsapi.get('netRemote.sys.caps.volumeSteps', (maxvolume) => {
                 fsapi.getlist_sysmodes((list) => {
@@ -393,25 +396,13 @@ class FrontierSiliconAdapter extends Adapter {
     this.search();
     setInterval(() => {
       _self.search();
-    }, ssdpPollInterval);
+    }, this.config.ssdpPollInterval);
   }
 
   search() {
     this.ssdpclient.search('urn:schemas-frontier-silicon-com:undok:fsapi:1');
     //this.ssdpclient.search('urn:schemas-frontier-silicon-com:fs_reference:fsapi:1');
     //this.ssdpclient.search('ssdp:all');
-  }
-
-  addDevice(deviceId, deviceDescription) {
-    return new Promise((resolve, reject) => {
-      if (deviceId in this.devices) {
-        reject(`Device: ${deviceId} already exists.`);
-      } else {
-        const device = new RadioDevice(this, deviceId, deviceDescription, [], 0);
-        this.handleDeviceAdded(device);
-        resolve(device);
-      }
-    });
   }
 
   removeDevice(deviceId) {

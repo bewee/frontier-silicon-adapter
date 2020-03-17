@@ -15,5 +15,29 @@
   "manifest_version": 1,
   "name": "Frontier Silicon Internet Radio",
   "short_name": "FS-Radio",
-  "version": "0.7.0"
+  "version": "0.7.0",
+
+  "options": {
+    "default": {
+      "pin": "1234",
+      "ssdpPollInterval": 60000
+    },
+    "schema": {
+      "type": "object",
+      "required": [
+        "pin",
+        "ssdpPollInterval"
+      ],
+      "properties": {
+        "pin": {
+          "description": "PIN of your radio devices",
+          "type": "string"
+        },
+        "ssdpPollInterval": {
+          "description": "Interval in milliseconds that defines how often to search for new radios",
+          "type": "integer"
+        }
+      }
+    }
+  }
 }
