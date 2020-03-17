@@ -147,38 +147,38 @@ class RadioDevice extends Device {
           type: 'boolean',
           value: false,
         },
-        'netremote.sys.audio.volume': {
-          '@type': 'LevelProperty',
-          label: 'Volume',
-          name: 'volume',
-          type: 'integer',
-          minimum: 0,
-          maximum: maxvolume,
-          value: maxvolume/4,
-        },
         'netremote.play.control': {
-          label: 'Play/Pause',
+          label: '⏯',
           name: 'playing',
           type: 'boolean',
           value: false,
         },
         'netremote.sys.audio.mute': {
-          label: 'Muted',
+          label: '🔇',
           name: 'muted',
           type: 'boolean',
           value: false,
         },
         'netremote.play.repeat': {
-          label: 'Loop',
+          label: '🔁',
           name: 'repeat',
           type: 'boolean',
           value: false,
         },
         'netremote.play.shuffle': {
-          label: 'Shuffle',
+          label: '🔀',
           name: 'shuffle',
           type: 'boolean',
           value: false,
+        },
+        'netremote.sys.audio.volume': {
+          '@type': 'LevelProperty',
+          label: '🔊',
+          name: 'volume',
+          type: 'integer',
+          minimum: 0,
+          maximum: maxvolume,
+          value: maxvolume/4,
         },
         'netremote.sys.mode': {
           label: 'Mode',
@@ -208,32 +208,32 @@ class RadioDevice extends Device {
       this.properties.get('netremote.sys.audio.mute').updateValue(val==0?'1':'0');
     });
     this.properties.set('netremote.sys.audio.volume', volumeProperty);
+    const repeatProperty = new RadioProperty(this, 'netremote.play.repeat', deviceDescription.properties['netremote.play.repeat'], 'bool');
+    this.properties.set('netremote.play.repeat', repeatProperty);
+    const shuffleProperty = new RadioProperty(this, 'netremote.play.shuffle', deviceDescription.properties['netremote.play.shuffle'], 'bool');
+    this.properties.set('netremote.play.shuffle', shuffleProperty);
+    const mutedProperty = new RadioProperty(this, 'netremote.sys.audio.mute', deviceDescription.properties['netremote.sys.audio.mute'], 'bool');
+    this.properties.set('netremote.sys.audio.mute', mutedProperty);
+    const sysmodeProperty = new RadioProperty(this, 'netremote.sys.mode', deviceDescription.properties['netremote.sys.mode'], 'enum', sysmodelist);
+    this.properties.set('netremote.sys.mode', sysmodeProperty);
     const playingProperty = new RadioProperty(this, 'netremote.play.control', deviceDescription.properties['netremote.play.control'], 'enum', {0: false, 1: false, 2: true, 3: false}, {true: 1, false: 2}, null, (val) => {
       if (val == '2')
         this.properties.get('netremote.sys.power').updateValue('1');
     });
     this.properties.set('netremote.play.control', playingProperty);
-    const mutedProperty = new RadioProperty(this, 'netremote.sys.audio.mute', deviceDescription.properties['netremote.sys.audio.mute'], 'bool');
-    this.properties.set('netremote.sys.audio.mute', mutedProperty);
-    const repeatProperty = new RadioProperty(this, 'netremote.play.repeat', deviceDescription.properties['netremote.play.repeat'], 'bool');
-    this.properties.set('netremote.play.repeat', repeatProperty);
-    const shuffleProperty = new RadioProperty(this, 'netremote.play.shuffle', deviceDescription.properties['netremote.play.shuffle'], 'bool');
-    this.properties.set('netremote.play.shuffle', shuffleProperty);
-    const sysmodeProperty = new RadioProperty(this, 'netremote.sys.mode', deviceDescription.properties['netremote.sys.mode'], 'enum', sysmodelist);
-    this.properties.set('netremote.sys.mode', sysmodeProperty);
     const infoProperty = new RadioInfoProperty(this, 'netremote.play.info.*', deviceDescription.properties['netremote.play.info.*']);
     this.properties.set('netremote.play.info.*', infoProperty);
 
-    this.addAction('next', {
-      title: '>>',
-      description: 'Skip to the next track',
-    });
-    this.actionsfn.next = this.fsapi.action_next.bind(this.fsapi);
     this.addAction('previous', {
-      title: '<<',
+      title: '⏮',
       description: 'Skip to the previous track',
     });
     this.actionsfn.previous = this.fsapi.action_previous.bind(this.fsapi);
+    this.addAction('next', {
+      title: '⏭',
+      description: 'Skip to the next track',
+    });
+    this.actionsfn.next = this.fsapi.action_next.bind(this.fsapi);
 
     this.links.push({
       rel: 'alternate',
