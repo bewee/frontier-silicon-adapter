@@ -90,6 +90,35 @@ class RadioProperty extends Property {
   }
 }
 
+class RadioInfoProperty extends Property {
+  constructor(device, name, propertyDescription) {
+    super(device, name, propertyDescription);
+    this.device = device;
+    this.unit = propertyDescription.unit;
+    this.description = propertyDescription.description;
+    this.setCachedValue(propertyDescription.value);
+    this.device.notifyPropertyChanged(this);
+  }
+
+  update() {
+    const _self = this;
+    this.device.fsapi.get('netremote.play.info.name', (name) => {
+      name = `${name.trim()}\n`;
+      _self.device.fsapi.get('netremote.play.info.text', (text) => {
+        text = `${text.trim()}\n`;
+        _self.device.fsapi.get('netremote.play.info.artist', (artist) => {
+          artist = `Artist: ${artist.trim()}\n`;
+          _self.device.fsapi.get('netremote.play.info.album', (album) => {
+            album = `Album: ${album.trim()}\n`;
+            _self.setCachedValue(`${name!=='\n'?name:''}${text!=='\n'?text:''}${artist!=='Artist: \n'?artist:''}${album!=='Album: \n'?album:''}`);
+            _self.device.notifyPropertyChanged(this);
+          });
+        });
+      });
+    });
+  }
+}
+
 class RadioDevice extends Device {
   constructor(adapter, id, ip, name, sysmodelist) {
     super(adapter, id);
@@ -146,6 +175,13 @@ class RadioDevice extends Device {
           enum: sysmodelist,
           value: '0',
         },
+        'netremote.play.info.*': {
+          label: 'Info',
+          name: 'info',
+          type: 'string',
+          value: '',
+          readOnly: true,
+        },
       },
     };
 
@@ -169,6 +205,8 @@ class RadioDevice extends Device {
     this.properties.set('netremote.sys.audio.mute', mutedProperty);
     const sysmodeProperty = new RadioProperty(this, 'netremote.sys.mode', deviceDescription.properties['netremote.sys.mode'], 'enum', sysmodelist);
     this.properties.set('netremote.sys.mode', sysmodeProperty);
+    const infoProperty = new RadioInfoProperty(this, 'netremote.play.info.*', deviceDescription.properties['netremote.play.info.*']);
+    this.properties.set('netremote.play.info.*', infoProperty);
 
     this.addAction('next', {
       title: '>>',
@@ -235,6 +273,10 @@ class RadioDevice extends Device {
         switch (prop) {
           case 'netremote.play.status': {
             this.properties.get('netremote.play.control').updateValue(list[prop]);
+            break;
+          }
+          case 'netremote.play.info.name': case 'netremote.play.info.text': {
+            this.properties.get('netremote.play.info.*').update();
             break;
           }
           default:
