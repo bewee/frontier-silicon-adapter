@@ -6,17 +6,17 @@ const parseXML = require('xml2js').Parser().parseString;
 
 class FSAPI {
 
-  constructor(ip, pin, cb, disconnectcb = null) {
+  constructor(ip, pin, sid = null, cb, disconnectcb = null) {
     this.ip = ip;
     this.pin = pin;
     this.disconnectcb = disconnectcb;
-    this.connect(cb);
+    if (sid) this.sid = sid;
+    else     this.connect(cb);
   }
 
   doRequest(path, options, cb) {
     const params = new URLSearchParams(options).toString();
     const url = `http://${this.ip}/fsapi/${path}/?${params}`;
-    //console.log(url);
     fetch(url).then((res) => {
       if (!res) {
         cb(null);
@@ -62,7 +62,7 @@ class FSAPI {
         const val = valnode[Object.keys(valnode)[0]][0];
         if (cb) cb(val);
       } else {
-        console.error('This should not happen.', 'get', prop);
+        console.error(_self.ip, 'This should not happen.', 'GET', prop);
         if (ecb) ecb();
       }
     });
@@ -78,7 +78,7 @@ class FSAPI {
       if (data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0] == 'FS_OK') {
         if (cb) cb();
       } else {
-        console.error('This should not happen.', 'set', prop, val);
+        console.error(_self.ip, 'This should not happen.', 'SET', prop, val);
         if (ecb) ecb();
       }
     });
@@ -96,7 +96,7 @@ class FSAPI {
       } else if (data.fsapiResponse && data.fsapiResponse.status && data.fsapiResponse.status[0] == 'FS_LIST_END') {
         if (cb) cb(false);
       } else {
-        console.error('This should not happen.');
+        console.error(_self.ip, 'This should not happen.', 'LIST_GET_NEXT');
         if (ecb) ecb();
       }
     });
@@ -135,7 +135,7 @@ class FSAPI {
         }
         cb(list);
       } else {
-        console.error('This should not happen.');
+        console.error(_self.ip, 'This should not happen.', 'GET_NOTIFIES');
       }
     });
   }

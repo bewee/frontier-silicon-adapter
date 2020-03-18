@@ -16,8 +16,8 @@ class RadioProperty extends Property {
     this.device = device;
     this.unit = propertyDescription.unit;
     this.description = propertyDescription.description;
-    this.setCachedValue(propertyDescription.value);
-    this.device.notifyPropertyChanged(this);
+    //this.setCachedValue(propertyDescription.value);
+    //this.device.notifyPropertyChanged(this);
     this.datatype = datatype;
     this.decodeobj = decodeobj;
     this.encodeobj = encodeobj;
@@ -92,31 +92,38 @@ class RadioProperty extends Property {
   }
 }
 
+// netremote.play.control: 0=Stop; 1=Play; 2=Pause; 3=Next (song/station); 4=Previous (song/station)
+// netremote.play.status: 1=buffering/loading; 2=playing; 3=paused
 class RadioPlayingProperty extends Property {
   constructor(device, name, propertyDescription) {
     super(device, name, propertyDescription);
     this.device = device;
     this.unit = propertyDescription.unit;
     this.description = propertyDescription.description;
-    this.setCachedValue(propertyDescription.value);
-    this.device.notifyPropertyChanged(this);
+    //this.setCachedValue(propertyDescription.value);
+    //this.device.notifyPropertyChanged(this);
   }
 
   // update value by querying netremote.play.control
   update() {
     const _self = this;
     this.device.fsapi.get(this.name, (data) => {
-      _self.updateValue(data==='2' ? '3' : '2');
+      _self.updateValue(`x${data}`);
     });
   }
 
-  // update value (given in netremote.play.status format)
+  // update value (given in netremote.play.status or xnetremote.play.control format)
   updateValue(value) {
     if (value == '2')
       this.device.properties.get('netremote.sys.power').updateValue('1');
     let v = true;
-    if (value === '1' || value === '3')
-      v = false;
+    if (value.startsWith('x')) {
+      if (value === 'x0' || value === 'x2')
+        v = false;
+    } else {
+      if (value === '1' || value === '3')
+        v = false;
+    }
     this.setValue(v, false);
   }
 
@@ -145,8 +152,8 @@ class RadioInfoProperty extends Property {
     this.device = device;
     this.unit = propertyDescription.unit;
     this.description = propertyDescription.description;
-    this.setCachedValue(propertyDescription.value);
-    this.device.notifyPropertyChanged(this);
+    //this.setCachedValue(propertyDescription.value);
+    //this.device.notifyPropertyChanged(this);
   }
 
   update() {
@@ -169,16 +176,16 @@ class RadioInfoProperty extends Property {
 }
 
 class RadioDevice extends Device {
-  constructor(adapter, id, ip, name, sysmodelist, maxvolume) {
+  constructor(adapter, id, ip, name, sid, sysmodelist, maxvolume) {
     super(adapter, id);
     this.ip = ip;
     this.actionsfn = [];
 
     const _self = this;
-    this.fsapi = new FSAPI(this.ip, _self.adapter.config.pin, (stat) => {
-      _self.connectedNotify(stat);
-    }, () => {
-      console.log('Disconnected! Trying to reconnect!');
+    this.fsapi = new FSAPI(this.ip, _self.adapter.config.pin, sid, null, () => {
+      if ('dead' in _self) return;
+      _self.connectedNotify(false);
+      console.log(_self.id, 'Trying to reconnect!');
       _self.fsapi.connect((stat) => {
         _self.connectedNotify(stat);
       });
@@ -294,7 +301,7 @@ class RadioDevice extends Device {
     if (fn)
       fn();
     else
-      console.warn(`Unknown action ${action}`);
+      console.warn(this.id, `Unknown action ${action}`);
     action.finish();
   }
 
@@ -310,20 +317,18 @@ class RadioDevice extends Device {
     if (!('connected' in this) || stat != this.connected) {
       this.connected = stat;
       if (stat) {
-        console.log('Connected!');
+        console.log(this.id, 'Connected!');
         this.updateAllProperties();
         this.detectUpdates();
-        super.connectedNotify(stat);
       } else {
-        console.log('Disconnected');
+        console.log(this.id, 'Disconnected!');
       }
-    } else {
-      super.connectedNotify(stat);
     }
+    super.connectedNotify(stat);
   }
 
   updateAllProperties() {
-    console.log('Updating all properties!');
+    console.log(this.id, 'Updating all properties!');
     for (const entry of this.properties.entries()) {
       if (this.properties.get(entry[0]).update) this.properties.get(entry[0]).update();
     }
@@ -332,7 +337,8 @@ class RadioDevice extends Device {
   detectUpdates() {
     const _self = this;
     this.fsapi.getnotifies((list) => {
-      console.log('list', list);
+      if ('dead' in _self) return;
+      console.log(_self.id, 'List of changes', list);
       for (const prop in list) {
         switch (prop) {
           case 'netremote.play.status': {
@@ -358,6 +364,7 @@ class FrontierSiliconAdapter extends Adapter {
   constructor(addonManager) {
     super(addonManager, 'FrontierSiliconAdapter', manifest.id);
     addonManager.addAdapter(this);
+    this.devices_by_ip = {};
 
     this.db = new Database(this.packageName);
     const _self = this;
@@ -376,19 +383,20 @@ class FrontierSiliconAdapter extends Adapter {
     const _self = this;
     this.ssdpclient.on('response', (headers, statusCode, rinfo) => {
       if (statusCode == 200) {
-        if (!_self.devices[`frontier-silicon-${rinfo.address}`]) {
-          const fsapi = new FSAPI(rinfo.address, _self.config.pin, () => {
+        if (!_self.devices_by_ip[rinfo.address]) {
+          const fsapi = new FSAPI(rinfo.address, _self.config.pin, null, () => {
             fsapi.get('netRemote.sys.info.radioId', (radioId) => {
               fsapi.get('netRemote.sys.caps.volumeSteps', (maxvolume) => {
                 fsapi.getlist_sysmodes((list) => {
-                  const device = new RadioDevice(_self, `frontier-silicon-${radioId}`, rinfo.address, headers['SPEAKER-NAME'], list, parseInt(maxvolume));
+                  const device = new RadioDevice(_self, `frontier-silicon-${radioId}`, rinfo.address, headers['SPEAKER-NAME'], fsapi.sid, list, parseInt(maxvolume));
+                  this.devices_by_ip[device.ip] = device;
                   _self.handleDeviceAdded(device);
                 });
               });
             });
           });
         } else {
-          const d = _self.devices[`frontier-silicon-${rinfo.address}`];
+          const d = _self.devices_by_ip[rinfo.address];
           d.revive();
         }
       }
@@ -405,44 +413,25 @@ class FrontierSiliconAdapter extends Adapter {
     //this.ssdpclient.search('ssdp:all');
   }
 
-  removeDevice(deviceId) {
-    return new Promise((resolve, reject) => {
-      const device = this.devices[deviceId];
-      if (device) {
-        this.handleDeviceRemoved(device);
-        resolve(device);
-      } else {
-        reject(`Device: ${deviceId} not found.`);
-      }
-    });
-  }
-
   startPairing(_timeoutSeconds) {
-    console.log('FrontierSiliconAdapter:', this.name,
-                'id', this.id, 'pairing started');
+    console.log('pairing started');
     this.search();
   }
 
   cancelPairing() {
-    console.log('FrontierSiliconAdapter:', this.name, 'id', this.id,
-                'pairing cancelled');
+    console.log('pairing cancelled');
   }
 
   removeThing(device) {
-    console.log('FrontierSiliconAdapter:', this.name, 'id', this.id,
-                'removeThing(', device.id, ') started');
+    console.log('removeThing(', device.id, ')');
 
-    this.removeDevice(device.id).then(() => {
-      console.log('FrontierSiliconAdapter: device:', device.id, 'was unpaired.');
-    }).catch((err) => {
-      console.error('FrontierSiliconAdapter: unpairing', device.id, 'failed');
-      console.error(err);
-    });
+    this.handleDeviceRemoved(device);
+    device.dead = true;
+    delete this.devices_by_ip[device.ip];
   }
 
   cancelRemoveThing(device) {
-    console.log('FrontierSiliconAdapter:', this.name, 'id', this.id,
-                'cancelRemoveThing(', device.id, ')');
+    console.log('cancelRemoveThing(', device.id, ')');
   }
 }
 
