@@ -9,6 +9,36 @@ const {
 const SSDPClient = require('node-ssdp').Client;
 const FSAPI = require('./fsapi');
 const manifest = require('./manifest.json');
+const os = require('os');
+const path = require('path');
+const fs = require('fs');
+const mkdirp = require('mkdirp');
+const {createCanvas, loadImage} = require('canvas');
+
+function getMediaPath() {
+  let profileDir;
+  if (process.env.hasOwnProperty('MOZIOT_HOME')) {
+    profileDir = process.env.MOZIOT_HOME;
+  } else {
+    profileDir = path.join(os.homedir(), '.mozilla-iot');
+  }
+
+  return path.join(profileDir, 'media', 'frontier-silicon');
+}
+
+function saveImageTo(url, path, ecb) {
+  loadImage(url).then((img) => {
+    const canvas = createCanvas(img.width, img.height);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, img.width, img.height);
+    const base64Data = canvas.toDataURL().replace(/^data:image\/png;base64,/, '');
+    fs.writeFile(path, base64Data, 'base64', (err) => {
+      if (err && ecb) ecb(err);
+    });
+  }).catch((err) => {
+    if (ecb) ecb(err);
+  });
+}
 
 class RadioProperty extends Property {
   constructor(device, name, propertyDescription, datatype = null, decodeobj = null, encodeobj = null, setcb = null, updatecb = null) {
@@ -152,8 +182,10 @@ class RadioInfoProperty extends Property {
     this.device = device;
     this.unit = propertyDescription.unit;
     this.description = propertyDescription.description;
-    //this.setCachedValue(propertyDescription.value);
-    //this.device.notifyPropertyChanged(this);
+
+    if (fs.existsSync(this.device.coverPath))
+      fs.unlinkSync(this.device.coverPath);
+    saveImageTo('https://cdn.pixabay.com/photo/2012/04/01/19/05/note-24074_960_720.png', this.device.coverPath);
   }
 
   update() {
@@ -168,6 +200,29 @@ class RadioInfoProperty extends Property {
             album = `Album: ${album.trim()}\n`;
             _self.setCachedValue(`${name!=='\n'?name:''}${text!=='\n'?text:''}${artist!=='Artist: \n'?artist:''}${album!=='Album: \n'?album:''}`);
             _self.device.notifyPropertyChanged(this);
+
+            // update cover
+            _self.device.fsapi.get('netRemote.play.info.graphicUri', (url) => {
+              if (!url || url==='') {
+                console.log(_self.id, 'No cover provided');
+                saveImageTo('https://cdn.pixabay.com/photo/2012/04/01/19/05/note-24074_960_720.png', _self.device.coverPath, (err) => {
+                  console.error(_self.id, err);
+                  fs.unlinkSync(_self.device.coverPath);
+                });
+                return;
+              }
+              console.log(_self.id, 'Loading cover', url);
+              if (!fs.existsSync(_self.device.mediaDir)) {
+                mkdirp.sync(_self.device.mediaDir, {mode: 0o755});
+              }
+              saveImageTo(url, _self.device.coverPath, (err) => {
+                console.log(_self.id, err);
+                saveImageTo('https://cdn.pixabay.com/photo/2012/04/01/19/05/note-24074_960_720.png', _self.device.coverPath, (err) => {
+                  console.error(_self.id, err);
+                  fs.unlinkSync(_self.device.coverPath);
+                });
+              });
+            });
           });
         });
       });
@@ -180,6 +235,9 @@ class RadioDevice extends Device {
     super(adapter, id);
     this.ip = ip;
     this.actionsfn = [];
+
+    this.mediaDir = path.join(getMediaPath(), this.id);
+    this.coverPath = path.join(this.mediaDir, 'cover.jpg');
 
     const _self = this;
     this.fsapi = new FSAPI(this.ip, _self.adapter.config.pin, sid, null, () => {
@@ -250,6 +308,20 @@ class RadioDevice extends Device {
           value: '',
           readOnly: true,
         },
+        cover: {
+          '@type': 'ImageProperty',
+          label: 'Cover',
+          name: 'cover',
+          type: 'null',
+          readOnly: true,
+          links: [
+            {
+              rel: 'alternate',
+              href: `/media/frontier-silicon/${this.id}/cover.jpg`,
+              mediaType: 'image/jpeg',
+            },
+          ],
+        },
       },
     };
 
@@ -276,6 +348,8 @@ class RadioDevice extends Device {
     this.properties.set('netremote.play.control', playingProperty);
     const infoProperty = new RadioInfoProperty(this, 'netremote.play.info.*', deviceDescription.properties['netremote.play.info.*']);
     this.properties.set('netremote.play.info.*', infoProperty);
+    const coverProperty = new Property(this, 'cover', deviceDescription.properties.cover);
+    this.properties.set('cover', coverProperty);
 
     this.addAction('previous', {
       title: '⏮',
