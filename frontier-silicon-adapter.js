@@ -185,7 +185,7 @@ class RadioInfoProperty extends Property {
 
     if (fs.existsSync(this.device.coverPath))
       fs.unlinkSync(this.device.coverPath);
-    saveImageTo('https://cdn.pixabay.com/photo/2012/04/01/19/05/note-24074_960_720.png', this.device.coverPath);
+    saveImageTo(this.device.adapter.config.altcover, this.device.coverPath);
   }
 
   update() {
@@ -204,21 +204,21 @@ class RadioInfoProperty extends Property {
             // update cover
             _self.device.fsapi.get('netRemote.play.info.graphicUri', (url) => {
               if (!url || url==='') {
-                console.log(_self.id, 'No cover provided');
-                saveImageTo('https://cdn.pixabay.com/photo/2012/04/01/19/05/note-24074_960_720.png', _self.device.coverPath, (err) => {
-                  console.error(_self.id, err);
+                console.log(_self.device.id, 'No cover provided');
+                saveImageTo(_self.device.adapter.config.altcover, _self.device.coverPath, (err) => {
+                  console.error(_self.device.id, err);
                   fs.unlinkSync(_self.device.coverPath);
                 });
                 return;
               }
-              console.log(_self.id, 'Loading cover', url);
+              console.log(_self.device.id, 'Loading cover', url);
               if (!fs.existsSync(_self.device.mediaDir)) {
                 mkdirp.sync(_self.device.mediaDir, {mode: 0o755});
               }
               saveImageTo(url, _self.device.coverPath, (err) => {
-                console.log(_self.id, err);
-                saveImageTo('https://cdn.pixabay.com/photo/2012/04/01/19/05/note-24074_960_720.png', _self.device.coverPath, (err) => {
-                  console.error(_self.id, err);
+                console.log(_self.device.id, err);
+                saveImageTo(_self.device.adapter.config.altcover, _self.device.coverPath, (err) => {
+                  console.error(_self.device.id, err);
                   fs.unlinkSync(_self.device.coverPath);
                 });
               });
