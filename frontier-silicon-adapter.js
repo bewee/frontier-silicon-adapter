@@ -256,38 +256,38 @@ class RadioDevice extends Device {
       properties: {
         'netremote.sys.power': {
           '@type': 'OnOffProperty',
-          label: 'On/Off',
+          label: this.adapter.config.emojis ? '⚡' : 'On/Off', // 🔌?
           name: 'on',
           type: 'boolean',
           value: false,
         },
         'netremote.play.control': {
-          label: '⏯',
+          label: this.adapter.config.emojis ? '⏯' : 'Play/Pause',
           name: 'playing',
           type: 'boolean',
           value: false,
         },
         'netremote.sys.audio.mute': {
-          label: '🔇',
+          label: this.adapter.config.emojis ? '🔇' : 'Mutde',
           name: 'muted',
           type: 'boolean',
           value: false,
         },
         'netremote.play.repeat': {
-          label: '🔁',
+          label: this.adapter.config.emojis ? '🔁' : 'Loop',
           name: 'repeat',
           type: 'boolean',
           value: false,
         },
         'netremote.play.shuffle': {
-          label: '🔀',
+          label: this.adapter.config.emojis ? '🔀' : 'Shuffle',
           name: 'shuffle',
           type: 'boolean',
           value: false,
         },
         'netremote.sys.audio.volume': {
           '@type': 'LevelProperty',
-          label: '🔊',
+          label: this.adapter.config.emojis ? '🔊' : 'Volume',
           name: 'volume',
           type: 'integer',
           minimum: 0,
@@ -295,14 +295,14 @@ class RadioDevice extends Device {
           value: maxvolume/4,
         },
         'netremote.sys.mode': {
-          label: 'Mode',
+          label: this.adapter.config.emojis ? ' ' : 'Mode',
           name: 'sysmode',
           type: 'string',
           enum: sysmodelist,
           value: '',
         },
         'netremote.play.info.*': {
-          label: 'Info',
+          label: this.adapter.config.emojis ? ' ' : 'Info',
           name: 'info',
           type: 'string',
           value: '',
@@ -310,7 +310,7 @@ class RadioDevice extends Device {
         },
         cover: {
           '@type': 'ImageProperty',
-          label: 'Cover',
+          label: this.adapter.config.emojis ? ' ' : 'Cover',
           name: 'cover',
           type: 'null',
           readOnly: true,
@@ -352,12 +352,12 @@ class RadioDevice extends Device {
     this.properties.set('cover', coverProperty);
 
     this.addAction('previous', {
-      title: '⏮',
+      title: this.adapter.config.emojis ? '⏮' : 'Previous',
       description: 'Skip to the previous track',
     });
     this.actionsfn.previous = this.fsapi.action_previous.bind(this.fsapi);
     this.addAction('next', {
-      title: '⏭',
+      title: this.adapter.config.emojis ? '⏭' : 'Previous',
       description: 'Skip to the next track',
     });
     this.actionsfn.next = this.fsapi.action_next.bind(this.fsapi);
