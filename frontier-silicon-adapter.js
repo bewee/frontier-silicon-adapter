@@ -231,7 +231,7 @@ class RadioInfoProperty extends Property {
 }
 
 class RadioDevice extends Device {
-  constructor(adapter, id, ip, name, sid, sysmodelist, maxvolume) {
+  constructor(adapter, id, ip, name, sysmodelist, maxvolume) {
     super(adapter, id);
     this.ip = ip;
     this.actionsfn = [];
@@ -240,13 +240,16 @@ class RadioDevice extends Device {
     this.coverPath = path.join(this.mediaDir, 'cover.jpg');
 
     const _self = this;
-    this.fsapi = new FSAPI(this.ip, _self.adapter.config.pin, sid, null, () => {
+    this.fsapi = new FSAPI(this.ip, _self.adapter.config.pin, () => {
       if ('dead' in _self) return;
       _self.connectedNotify(false);
       console.log(_self.id, 'Trying to reconnect!');
       _self.fsapi.connect((stat) => {
         _self.connectedNotify(stat);
       });
+    });
+    this.fsapi.connect(() => {
+      _self.connectedNotify(true);
     });
 
     const deviceDescription = {
@@ -458,14 +461,13 @@ class FrontierSiliconAdapter extends Adapter {
     this.ssdpclient.on('response', (headers, statusCode, rinfo) => {
       if (statusCode == 200) {
         if (!_self.devices_by_ip[rinfo.address]) {
-          const fsapi = new FSAPI(rinfo.address, _self.config.pin, null, () => {
-            fsapi.get('netRemote.sys.info.radioId', (radioId) => {
-              fsapi.get('netRemote.sys.caps.volumeSteps', (maxvolume) => {
-                fsapi.getlist_sysmodes((list) => {
-                  const device = new RadioDevice(_self, `frontier-silicon-${radioId}`, rinfo.address, headers['SPEAKER-NAME'], fsapi.sid, list, parseInt(maxvolume));
-                  this.devices_by_ip[device.ip] = device;
-                  _self.handleDeviceAdded(device);
-                });
+          const fsapi = new FSAPI(rinfo.address, _self.config.pin);
+          fsapi.get('netRemote.sys.info.radioId', (radioId) => {
+            fsapi.get('netRemote.sys.caps.volumeSteps', (maxvolume) => {
+              fsapi.getlist_sysmodes((list) => {
+                const device = new RadioDevice(_self, `frontier-silicon-${radioId}`, rinfo.address, headers['SPEAKER-NAME'], list, parseInt(maxvolume));
+                this.devices_by_ip[device.ip] = device;
+                _self.handleDeviceAdded(device);
               });
             });
           });

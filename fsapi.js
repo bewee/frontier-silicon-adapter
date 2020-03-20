@@ -6,12 +6,10 @@ const parseXML = require('xml2js').Parser().parseString;
 
 class FSAPI {
 
-  constructor(ip, pin, sid = null, cb, disconnectcb = null) {
+  constructor(ip, pin, disconnectcb = null) {
     this.ip = ip;
     this.pin = pin;
     this.disconnectcb = disconnectcb;
-    if (sid) this.sid = sid;
-    else     this.connect(cb);
   }
 
   doRequest(path, options, cb) {
@@ -52,7 +50,7 @@ class FSAPI {
 
   get(prop, cb = null, ecb = null) {
     const _self = this;
-    this.doRequest(`GET/${prop}`, {pin: _self.pin, sid: _self.sid}, (data) => {
+    this.doRequest(`GET/${prop}`, {pin: _self.pin}, (data) => {
       if (!(data && data.fsapiResponse && data.fsapiResponse.status)) {
         if (_self.disconnectcb) _self.disconnectcb();
         return;
@@ -70,7 +68,7 @@ class FSAPI {
 
   set(prop, val, cb = null, ecb = null) {
     const _self = this;
-    this.doRequest(`SET/${prop}`, {pin: _self.pin, sid: _self.sid, value: val}, (data) => {
+    this.doRequest(`SET/${prop}`, {pin: _self.pin, value: val}, (data) => {
       if (!(data && data.fsapiResponse && data.fsapiResponse.status)) {
         if (_self.disconnectcb) _self.disconnectcb();
         return;
@@ -86,7 +84,7 @@ class FSAPI {
 
   getitem(prop, index, cb, ecb) {
     const _self = this;
-    this.doRequest(`LIST_GET_NEXT/${prop}/${index-1}`, {pin: _self.pin, sid: _self.sid}, (data) => {
+    this.doRequest(`LIST_GET_NEXT/${prop}/${index-1}`, {pin: _self.pin}, (data) => {
       if (!(data && data.fsapiResponse && data.fsapiResponse.status)) {
         if (_self.disconnectcb) _self.disconnectcb();
         return;
@@ -115,6 +113,7 @@ class FSAPI {
     }, ecb);
   }
 
+  // requires a valid sid
   getnotifies(cb) {
     const _self = this;
     this.doRequest('GET_NOTIFIES', {pin: _self.pin, sid: _self.sid}, (data) => {
