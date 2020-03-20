@@ -8,7 +8,7 @@
 
 'use strict';
 
-const FrontierSiliconAdapter = require('./frontier-silicon-adapter');
+const FrontierSiliconAdapter = require('./lib/adapter');
 
 module.exports = (addonManager) => {
   new FrontierSiliconAdapter(addonManager);
