@@ -15,7 +15,7 @@
   "manifest_version": 1,
   "name": "Frontier Silicon Internet Radio",
   "short_name": "FS-Radio",
-  "version": "0.8.1",
+  "version": "0.8.2",
 
   "options": {
     "default": {
