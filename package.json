@@ -3,7 +3,7 @@
   "display_name": "Frontier Silicon Internet Radio",
   "version": "0.8.2",
   "description": "Frontier Silicon Internet Radio support",
-  "author": "Galveston01",
+  "author": "bewee",
   "main": "index.js",
   "scripts": {
     "lint": "eslint ."
@@ -15,14 +15,14 @@
     "frontier-silicon",
     "radio"
   ],
-  "homepage": "https://github.com/Galveston01/frontier-silicon-adapter",
+  "homepage": "https://github.com/bewee/frontier-silicon-adapter",
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Galveston01/frontier-silicon-adapter.git"
+    "url": "https://github.com/bewee/frontier-silicon-adapter.git"
   },
   "bugs": {
-    "url": "https://github.com/Galveston01/frontier-silicon-adapter/issues"
+    "url": "https://github.com/bewee/frontier-silicon-adapter/issues"
   },
   "devDependencies": {
     "babel-eslint": "^10.1.0",

@@ -1,5 +1,5 @@
 {
-  "author": "Galveston01",
+  "author": "bewee",
   "description": "Frontier Silicon Internet Radio support",
   "gateway_specific_settings": {
     "webthings": {
@@ -9,7 +9,7 @@
       "strict_min_version": "0.10.0"
     }
   },
-  "homepage_url": "https://github.com/Galveston01/frontier-silicon-adapter",
+  "homepage_url": "https://github.com/bewee/frontier-silicon-adapter",
   "id": "frontier-silicon-adapter",
   "license": "GPL-3.0",
   "manifest_version": 1,
