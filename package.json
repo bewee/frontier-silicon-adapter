@@ -9,7 +9,6 @@
     "lint": "eslint ."
   },
   "keywords": [
-    "mozilla",
     "iot",
     "adapter",
     "frontier-silicon",
@@ -36,15 +35,6 @@
     "index.js",
     "lib/"
   ],
-  "moziot": {
-    "api": {
-      "min": 2,
-      "max": 2
-    },
-    "type": "adapter",
-    "plugin": true,
-    "exec": "{nodeLoader} {path}"
-  },
   "dependencies": {
     "mkdirp": "^1.0.3",
     "node-fetch": "^2.6.1",

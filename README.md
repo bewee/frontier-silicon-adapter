@@ -1,5 +1,5 @@
 # frontier-silicon-adapter
-Frontier Silicon Internet Radio adapter add-on for Mozilla WebThings Gateway
+Frontier Silicon Internet Radio adapter add-on for WebThings Gateway
 
 This Adapter has been tested with the Teufel 3sixty internet radio. Medion MD87180, MEDION P85040 (MD 86988), MEDION P85035 (MD 87090), MEDION P85105 (MD 87505), Pinell Supersound II, Silvercrest SIRD 14 C1, Silvercrest SIRD 14 C2, Revo Supersystem, Revo Superconnect, Ruark R2, Technisat DigiRadio 450, Hama IR110, Hama DIR3110, Hama DIT2000M, Silvercrest SMRS 35 A1 and Silvercrest SMRB 40 A1 should be supported as well.
 
