@@ -1,7 +1,7 @@
 {
   "name": "frontier-silicon-adapter",
   "display_name": "Frontier Silicon Internet Radio",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "Frontier Silicon Internet Radio support",
   "author": "bewee",
   "main": "index.js",
